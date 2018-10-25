@@ -5,6 +5,7 @@
  *      Author: stremblay
  */
 #include "ESP8266WiFi.h"
+#include "WebServer.h"
 
 #ifndef TESTWEMOS_H_
 #define TESTWEMOS_H_
@@ -14,6 +15,8 @@ void sendWebPage(WiFiClient*);
 void sendWebPageHead(WiFiClient*);
 void sendWebPageFoot(WiFiClient*);
 void sendWebPageContent(WiFiClient*);
+
+bool rootCallBack(void*, WiFiClient*);
 
 bool isProximityTriggered(void);
 void processRequest(WiFiClient*);

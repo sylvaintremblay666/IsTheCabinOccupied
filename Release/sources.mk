@@ -34,6 +34,7 @@ CPP_DEPS :=
 
 # Every subdirectory with source files must be described here
 SUBDIRS := \
+. \
 core/core \
 core/core/libb64 \
 core/core/spiffs \
@@ -44,5 +45,4 @@ libraries/ESP8266WebServer/src \
 libraries/ESP8266WebServer/src/detail \
 libraries/ESP8266WiFi/src \
 libraries/WiFiManager \
-. \
 

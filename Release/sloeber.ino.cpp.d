@@ -124,7 +124,7 @@ sloeber.ino.cpp.o: ../sloeber.ino.cpp \
  /devel/arduino/sloeber-431/arduinoPlugin/packages/esp8266/hardware/esp8266/2.4.2/libraries/ESP8266WiFi/src/include/ssl.h \
  /devel/arduino/sloeber-431/arduinoPlugin/packages/esp8266/hardware/esp8266/2.4.2/libraries/ESP8266HTTPClient/src/ESP8266HTTPClient.h \
  /devel/arduino/sloeber-431/arduinoPlugin/packages/esp8266/hardware/esp8266/2.4.2/libraries/ESP8266WiFi/src/WiFiClient.h \
- ../testWemos.h \
+ ../testWemos.h ../WebServer.h \
  /devel/arduino/sloeber-431/arduinoPlugin/libraries/WiFiManager/0.14/WiFiManager.h \
  /devel/arduino/sloeber-431/arduinoPlugin/packages/esp8266/hardware/esp8266/2.4.2/libraries/ESP8266WebServer/src/ESP8266WebServer.h \
  /devel/arduino/sloeber-431/arduinoPlugin/packages/esp8266/hardware/esp8266/2.4.2/libraries/ESP8266WebServer/src/detail/RequestHandler.h \
@@ -385,6 +385,8 @@ sloeber.ino.cpp.o: ../sloeber.ino.cpp \
 /devel/arduino/sloeber-431/arduinoPlugin/packages/esp8266/hardware/esp8266/2.4.2/libraries/ESP8266WiFi/src/WiFiClient.h:
 
 ../testWemos.h:
+
+../WebServer.h:
 
 /devel/arduino/sloeber-431/arduinoPlugin/libraries/WiFiManager/0.14/WiFiManager.h:
 
