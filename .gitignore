@@ -1,2 +1,7 @@
 .*.swp
 Release/
+*.cpp.o
+*.bin
+*.elf
+*.map
+

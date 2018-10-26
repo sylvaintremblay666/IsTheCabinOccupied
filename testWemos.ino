@@ -9,12 +9,6 @@
 #define OnBoardLED D2
 #define ProxSensor D9
 
-// Set web server port number to 80
-//WiFiServer server(80);
-
-// Variable to store the HTTP request
-//String header;
-
 // To store the state of the LED
 String ledState = "On";
 
@@ -38,9 +32,9 @@ void setup()
     // Initialize serial console output
 	Serial.begin(115200);
 
-	// Initialize proximity sensor pin and the sensor state
+	// Initialize reed sensor pin and the sensor state
 	pinMode(ProxSensor,INPUT);
-	sensorState = isProximityTriggered();
+	sensorState = isTriggered();
 
 
 	// Initialize the LED pins
@@ -61,6 +55,7 @@ void setup()
 	Serial.println("WiFi connected.");
 	Serial.println("IP address: ");
 	Serial.println(WiFi.localIP());
+
 	sendToSlack("Sensor connected to WiFi SSID: " + WiFi.SSID());
 	sendToSlack("IP address: " + WiFi.localIP().toString());
 
@@ -72,7 +67,7 @@ void setup()
 // The loop function is called in an endless loop
 void loop()
 {
-	if (sensorState != isProximityTriggered()) {
+	if (sensorState != isTriggered()) {
 		sensorState = !sensorState;
 		if(sensorState) {
 			sendToSlack("Presence detected");
@@ -101,33 +96,28 @@ bool rootCallBack(void *webServer, WiFiClient *client) {
 	return true;
 }
 
-bool isProximityTriggered(void) {
+bool isTriggered(void) {
 	int proxSensor = digitalRead(ProxSensor);
 	return proxSensor == LOW;
 }
 
-void sendToSlack(String s) {
+void sendSslPOSTnoCertCheck(String url, String msg){
 	WiFiClientSecure client;
 
-	String msg = "{\"text\":\"" + s + "\"}";
+	if (!client.connect(url, 443)) {
+		Serial.println("connection failed");
+		return;
+	}
 
-	  Serial.print("connecting to : '");
-	  Serial.print(WEBHOOK_HOST);
-	  Serial.println("'");
-
-	  Serial.println("message : ");
-	  Serial.println(msg);
-
-	  if (!client.connect(WEBHOOK_HOST, 443)) {
-	    Serial.println("connection failed");
-	    return;
-	  }
-
-	//  if (client.verify(fingerprint, host)) {
-	//    Serial.println("certificate matches");
-	//  } else {
-	//    Serial.println("certificate doesn't match");
-	//  }
+	// This is how to validate the certificate's fingerprint, but the
+	// right fingerprint needs to be registered first for this to work.
+	/*
+	 if (client.verify(fingerprint, host)) {
+	 	 Serial.println("certificate matches");
+	 	 } else {
+	 	 Serial.println("certificate doesn't match");
+	 }
+	 */
 
 	  Serial.print("requesting URL: '");
 	  Serial.print(WEBHOOK_PATH);
@@ -150,16 +140,24 @@ void sendToSlack(String s) {
 	    if (millis() - timeout > 5000) {
 	      Serial.println(">>> Client Timeout !");
 	      client.stop();
-	      return;
 	    }
 	  }
-/*
+
+      /*
 	  // Read all the lines of the reply from server and print them to Serial
 	  while(client.available()){
 	    String line = client.readStringUntil('\r');
 	    Serial.print(line);
 	  }
-	  client.stop();*/
+	  client.stop();
+      */
+}
+
+void sendToSlack(String s) {
+	WiFiClientSecure client;
+
+	String msg = "{\"text\":\"" + s + "\"}";
+	sendSslPOSTnoCertCheck(WEBHOOK_HOST, msg);
 }
 
 /*

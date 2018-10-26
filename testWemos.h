@@ -18,11 +18,11 @@ void sendWebPageContent(WiFiClient*);
 
 bool rootCallBack(void*, WiFiClient*);
 
-bool isProximityTriggered(void);
+bool isTriggered(void);
 void processRequest(WiFiClient*);
 
 void sendToSlack(String);
-
+void sendSslPOSTnoCertCheck(String, String);
 
 
 #endif /* TESTWEMOS_H_ */
