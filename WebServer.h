@@ -25,16 +25,17 @@ public:
 	void sendWebPageHead();
 	void sendWebPageFoot();
 
-	void sendCallbacksList();
+	void sendEndpointsList();
 
 	bool processRequest();
 
-	bool registerEndpoint(String, CallbackFct);
+	bool registerEndpoint(String, String, CallbackFct);
 
 private:
 	typedef struct {
 			CallbackFct fct;
-			String contextPath;
+			String methodAndPath;
+			String description;
 		} Callback;
 
 	short maxCallbacks = 5;

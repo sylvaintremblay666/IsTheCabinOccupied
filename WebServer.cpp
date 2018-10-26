@@ -69,19 +69,21 @@ void WebServer::checkForClientAndProcessRequest(void){
 	}
 }
 
-bool WebServer::registerEndpoint(String contextPath, CallbackFct fct) {
+bool WebServer::registerEndpoint(String methodAndPath, String description, CallbackFct fct) {
 	if (nbCallbacks == maxCallbacks) {
 		Callback* newArray = new Callback[++maxCallbacks];
 		for(short i = 0; i < nbCallbacks; i++){
-			newArray[i].contextPath = callbacks[i].contextPath;
+			newArray[i].methodAndPath = callbacks[i].methodAndPath;
 			newArray[i].fct = callbacks[i].fct;
+			newArray[i].description = callbacks[i].description;
 		}
 		delete [] callbacks;
 		callbacks = newArray;
 	}
 
 	callbacks[nbCallbacks].fct = fct;
-	callbacks[nbCallbacks].contextPath = contextPath;
+	callbacks[nbCallbacks].methodAndPath = methodAndPath;
+	callbacks[nbCallbacks].description = description;
 
 	nbCallbacks++;
 
@@ -124,7 +126,7 @@ void WebServer::sendWebPageFoot() {
 
 bool WebServer::processRequest(){
 	for(short i = 0; i < nbCallbacks; i++){
-		if (header.indexOf(callbacks[i].contextPath + " HTTP") >= 0){
+		if (header.indexOf(callbacks[i].methodAndPath + " HTTP") >= 0){
 			callbacks[i].fct(this, &client);
 			return true;
 		}
@@ -133,11 +135,12 @@ bool WebServer::processRequest(){
 	return false;
 }
 
-void WebServer::sendCallbacksList() {
+void WebServer::sendEndpointsList() {
 	client.println("<table>");
 	for(short i = 0; i < nbCallbacks; i++){
 		client.println("<tr>");
-		client.println("<td>" + callbacks[i].contextPath + "</td>");
+		client.println("<td>" + callbacks[i].methodAndPath + "</td>");
+		client.println("<td>" + callbacks[i].description + "</td>");
 		client.println("</tr>");
 	}
 	client.println("</table>");
