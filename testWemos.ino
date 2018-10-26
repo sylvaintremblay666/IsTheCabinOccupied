@@ -9,6 +9,9 @@
 #define OnBoardLED D2
 #define ProxSensor D9
 
+// Comment this line to disable serial debug output
+#define __DEBUG__
+
 // To store the state of the LED
 String ledState = "On";
 
@@ -36,7 +39,6 @@ void setup()
 	pinMode(ProxSensor,INPUT);
 	sensorState = isTriggered();
 
-
 	// Initialize the LED pins
 	pinMode(LED, OUTPUT);
 	pinMode(OnBoardLED, OUTPUT);
@@ -51,17 +53,14 @@ void setup()
 	ledState = "On";
 
 	// Print local IP address and start web server
-	Serial.println("");
-	Serial.println("WiFi connected.");
-	Serial.println("IP address: ");
-	Serial.println(WiFi.localIP());
+	debug("");
+	debug("WiFi connected.");
+	debug("IP address: " + WiFi.localIP().toString());
 
 	sendToSlack("Sensor connected to WiFi SSID: " + WiFi.SSID());
 	sendToSlack("IP address: " + WiFi.localIP().toString());
 
 	webServer.registerCallback("GET /", rootCallBack);
-	webServer.registerCallback("GET /1", rootCallBack);
-	webServer.registerCallback("GET /2", rootCallBack);
 }
 
 // The loop function is called in an endless loop
@@ -70,9 +69,9 @@ void loop()
 	if (sensorState != isTriggered()) {
 		sensorState = !sensorState;
 		if(sensorState) {
-			sendToSlack("Presence detected");
+			sendToSlack("Occupied");
 		} else {
-			sendToSlack("No more presence detected");
+			sendToSlack("Empty");
 		}
 	}
 
@@ -83,7 +82,7 @@ void loop()
 bool rootCallBack(void *webServer, WiFiClient *client) {
     WebServer *ws = (WebServer*) webServer;
 
-    Serial.println("Into callBack!");
+    debug("Into callBack!");
 
     ws->send200();
 
@@ -105,7 +104,7 @@ void sendSslPOSTnoCertCheck(String host, String url, String msg){
 	WiFiClientSecure client;
 
 	if (!client.connect(host, 443)) {
-		Serial.println("connection failed");
+		debug("connection failed");
 		return;
 	}
 
@@ -113,15 +112,13 @@ void sendSslPOSTnoCertCheck(String host, String url, String msg){
 	// right fingerprint needs to be registered first for this to work.
 	/*
 	 if (client.verify(fingerprint, host)) {
-	 	 Serial.println("certificate matches");
+	 	 debug("certificate matches");
 	 	 } else {
-	 	 Serial.println("certificate doesn't match");
+	 	 debug("certificate doesn't match");
 	 }
 	 */
 
-	  Serial.print("requesting URL: '");
-	  Serial.print(url);
-	  Serial.println("'");
+	  debug("requesting URL: '" + url + "'");
 
 	  client.print(String("POST ") + url + " HTTP/1.1\r\n" +
 	          "Host: " + host + "\r\n" +
@@ -133,12 +130,12 @@ void sendSslPOSTnoCertCheck(String host, String url, String msg){
 	          "\r\n" +
 	          msg + "\r\n");
 
-	  Serial.println("request sent");
+	  debug("request sent");
 
 	  unsigned long timeout = millis();
 	  while (client.available() == 0) {
 	    if (millis() - timeout > 5000) {
-	      Serial.println(">>> Client Timeout !");
+	      debug(">>> Client Timeout !");
 	      client.stop();
 	    }
 	  }
@@ -160,36 +157,8 @@ void sendToSlack(String s) {
 	sendSslPOSTnoCertCheck(WEBHOOK_HOST, WEBHOOK_PATH, msg);
 }
 
-/*
-void sendWebPageHead(WiFiClient* client) {
-    // Display the HTML web page
-    client->println("<!DOCTYPE html><html>");
-    client->println("<head><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">");
-    client->println("<link rel=\"icon\" href=\"data:,\">");
-    // CSS to style the on/off buttons
-    // Feel free to change the background-color and font-size attributes to fit your preferences
-    client->println("<style>html { font-family: Helvetica; display: inline-block; margin: 0px auto; text-align: center;}");
-    client->println(".button { background-color: #195B6A; border: none; color: white; padding: 16px 40px;");
-    client->println("text-decoration: none; font-size: 20px; margin: 2px; cursor: pointer;}");
-    client->println(".button2 {background-color: #77878A;}</style></head>");
-
-    // Web Page Heading
-    client->println("<body><h1>IsTheCabinOccupied? - ESP8266 Web Server</h1>");
+void debug(String msg) {
+#ifdef __DEBUG__
+	Serial.println(msg);
+#endif // __DEBUG__
 }
-
-void sendWebPageContent(WiFiClient* client) {
-	client->println("<p>Welcome Here!</p>");
-
-	client->print("<p>Is proximity sensor triggered: ");
-	isProximityTriggered() ? client->print("Yes") : client->print("No");
-	client->println("</p>");
-
-	if (ledState == "Off") {
-		client->println("<p><a href=\"/LED/on\"><button class=\"button\">Turn Led ON</button></a></p>");
-	} else {
-		client->println("<p><a href=\"/LED/off\"><button class=\"button button2\">Turn Led OFF</button></a></p>");
-	}
-
-	client->println("<p><a href=\"/ResetWiFi\"><button class=\"button button2\">Reset WiFi Settings</button></a></p>");
-}
-*/

@@ -43,6 +43,8 @@ private:
 	WiFiClient client;
 
     Callback* callbacks;
+
+    void debug(String);
 };
 
 #endif /* WEBSERVER_H_ */

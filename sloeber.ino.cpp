@@ -2,7 +2,7 @@
 //This is a automatic generated file
 //Please do not modify this file
 //If you touch this file your change will be overwritten during the next build
-//This file has been generated on 2018-10-26 15:14:11
+//This file has been generated on 2018-10-26 16:00:48
 
 #include "Arduino.h"
 #include "Arduino.h"
@@ -18,6 +18,7 @@ bool rootCallBack(void *webServer, WiFiClient *client) ;
 bool isTriggered(void) ;
 void sendSslPOSTnoCertCheck(String host, String url, String msg);
 void sendToSlack(String s) ;
+void debug(String msg) ;
 
 #include "testWemos.ino"
 

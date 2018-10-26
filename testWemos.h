@@ -24,5 +24,6 @@ void processRequest(WiFiClient*);
 void sendToSlack(String);
 void sendSslPOSTnoCertCheck(String, String, String);
 
+void debug(String);
 
 #endif /* TESTWEMOS_H_ */

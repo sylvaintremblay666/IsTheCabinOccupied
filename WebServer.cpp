@@ -8,6 +8,9 @@
 #include "WebServer.h"
 #include "WiFiManager.h"
 
+// Comment this line to disable serial debug output
+#define __WEBSERVER_DEBUG__
+
 WebServer::WebServer() {
 	server = new WiFiServer(80);
 	server->begin();
@@ -24,7 +27,7 @@ void WebServer::checkForClientAndProcessRequest(void){
 	client = server->available();   // Listen for incoming clients
 
 	if (client) {                             // If a new client connects,
-		Serial.println("New Client.");        // print a message out in the serial port
+		debug("New Client.");        // print a message out in the serial port
 		String currentLine = "";              // make a String to hold incoming data from the client
 		while (client.connected()) {          // loop while the client's connected
 			if (client.available()) {         // if there's bytes to read from the client,
@@ -38,8 +41,12 @@ void WebServer::checkForClientAndProcessRequest(void){
 						// HTTP headers always start with a response code (e.g. HTTP/1.1 200 OK)
 						// and a content-type so the client knows what's coming, then a blank line:
 
+						debug("Header: ");
+						debug(header);
+						debug("-----------");
+
 						if(!processRequest()){
-							Serial.println("processRequest failed, sending 404");
+							debug("processRequest failed, sending 404");
 							send404();
 						}
 
@@ -57,8 +64,8 @@ void WebServer::checkForClientAndProcessRequest(void){
 		header = "";
 		// Close the connection
 		client.stop();
-		Serial.println("Client disconnected.");
-		Serial.println("");
+		debug("Client disconnected.");
+		debug("");
 	}
 }
 
@@ -116,11 +123,6 @@ void WebServer::sendWebPageFoot() {
 }
 
 bool WebServer::processRequest(){
-
-	Serial.print("Header: ");
-	Serial.println(header);
-	Serial.println("---");
-
 	for(short i = 0; i < nbCallbacks; i++){
 		if (header.indexOf(callbacks[i].contextPath + " HTTP") >= 0){
 			callbacks[i].fct(this, &client);
@@ -131,5 +133,9 @@ bool WebServer::processRequest(){
 	return false;
 }
 
-
+void WebServer::debug(String msg){
+#ifdef __WEBSERVER_DEBUG__
+	Serial.println(msg);
+#endif // __WEBSERVER_DEBUG__
+}
 
