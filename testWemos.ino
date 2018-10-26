@@ -101,10 +101,10 @@ bool isTriggered(void) {
 	return proxSensor == LOW;
 }
 
-void sendSslPOSTnoCertCheck(String url, String msg){
+void sendSslPOSTnoCertCheck(String host, String url, String msg){
 	WiFiClientSecure client;
 
-	if (!client.connect(url, 443)) {
+	if (!client.connect(host, 443)) {
 		Serial.println("connection failed");
 		return;
 	}
@@ -120,11 +120,11 @@ void sendSslPOSTnoCertCheck(String url, String msg){
 	 */
 
 	  Serial.print("requesting URL: '");
-	  Serial.print(WEBHOOK_PATH);
+	  Serial.print(url);
 	  Serial.println("'");
 
-	  client.print(String("POST ") + WEBHOOK_PATH + " HTTP/1.1\r\n" +
-	          "Host: " + WEBHOOK_HOST + "\r\n" +
+	  client.print(String("POST ") + url + " HTTP/1.1\r\n" +
+	          "Host: " + host + "\r\n" +
 	          "Connection: close\r\n" +
 	          "Accept: */*\r\n" +
 	          "User-Agent: Mozilla/4.0 (compatible; esp8266 Lua; Windows NT 5.1)\r\n" +
@@ -157,7 +157,7 @@ void sendToSlack(String s) {
 	WiFiClientSecure client;
 
 	String msg = "{\"text\":\"" + s + "\"}";
-	sendSslPOSTnoCertCheck(WEBHOOK_HOST, msg);
+	sendSslPOSTnoCertCheck(WEBHOOK_HOST, WEBHOOK_PATH, msg);
 }
 
 /*

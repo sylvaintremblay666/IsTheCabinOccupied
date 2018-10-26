@@ -22,7 +22,7 @@ bool isTriggered(void);
 void processRequest(WiFiClient*);
 
 void sendToSlack(String);
-void sendSslPOSTnoCertCheck(String, String);
+void sendSslPOSTnoCertCheck(String, String, String);
 
 
 #endif /* TESTWEMOS_H_ */
