@@ -25,9 +25,11 @@ public:
 	void sendWebPageHead();
 	void sendWebPageFoot();
 
+	void sendCallbacksList();
+
 	bool processRequest();
 
-	bool registerCallback(String, CallbackFct);
+	bool registerEndpoint(String, CallbackFct);
 
 private:
 	typedef struct {

@@ -69,7 +69,7 @@ void WebServer::checkForClientAndProcessRequest(void){
 	}
 }
 
-bool WebServer::registerCallback(String contextPath, CallbackFct fct) {
+bool WebServer::registerEndpoint(String contextPath, CallbackFct fct) {
 	if (nbCallbacks == maxCallbacks) {
 		Callback* newArray = new Callback[++maxCallbacks];
 		for(short i = 0; i < nbCallbacks; i++){
@@ -131,6 +131,16 @@ bool WebServer::processRequest(){
 	}
 
 	return false;
+}
+
+void WebServer::sendCallbacksList() {
+	client.println("<table>");
+	for(short i = 0; i < nbCallbacks; i++){
+		client.println("<tr>");
+		client.println("<td>" + callbacks[i].contextPath + "</td>");
+		client.println("</tr>");
+	}
+	client.println("</table>");
 }
 
 void WebServer::debug(String msg){
