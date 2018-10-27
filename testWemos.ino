@@ -60,7 +60,7 @@ void setup()
 	sendToSlack("Sensor connected to WiFi SSID: " + WiFi.SSID());
 	sendToSlack("IP address: " + WiFi.localIP().toString());
 
-	webServer.registerEndpoint("GET /", "", rootCallback);
+	webServer.setDefaultPageTitle("CabinSensor");
 	webServer.registerEndpoint("GET /cabinStatus", "Get the status of the cabin (Occupied/Vacant)", cabinStatusCallback);
 }
 
@@ -78,22 +78,6 @@ void loop()
 
 	webServer.checkForClientAndProcessRequest();
 
-}
-
-bool rootCallback(WebServer *ws, WiFiClient *client, String queryString) {
-    ws->send200();
-
-    ws->sendWebPageHead();
-
-    ws->sendWiFiInfos();
-	ws->sendEndpointsList();
-
-	client->println("<H2>QueryString</H2>");
-	client->println(queryString);
-
-	ws->sendWebPageFoot();
-
-	return true;
 }
 
 bool cabinStatusCallback(WebServer *ws, WiFiClient *client, String queryString) {

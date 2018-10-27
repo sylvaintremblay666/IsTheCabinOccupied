@@ -143,12 +143,12 @@ void WebServer::send404() {
     client.println("Content-type:text/html");
     client.println("Connection: close");
     client.println();
-    sendWebPageHead();
-    client.println("----- NOT FOUND -----");
-    sendWebPageFoot();
+    sendWebPageHeadAndOpenBody();
+    client.println("----- 404 - NOT FOUND -----");
+    sendWebPageFootAndCloseBody();
 }
 
-void WebServer::sendWebPageHead() {
+void WebServer::sendWebPageHeadAndOpenBody() {
     // Open the <html> document
 	client.println("<!DOCTYPE html><html>");
     client.println("<head><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">");
@@ -157,10 +157,12 @@ void WebServer::sendWebPageHead() {
     // Open the <body>
     client.println("<body>");
 
-    client.println("<h1>ESP8266 Web Server</h1>");
+    if(defaultPageTitle != ""){
+    	client.println("<h1>" + defaultPageTitle + "</h1>");
+    }
 }
 
-void WebServer::sendWebPageFoot() {
+void WebServer::sendWebPageFootAndCloseBody() {
     // Close the <body> and <html> document
 	client.println("</body></html>");
 
@@ -192,7 +194,31 @@ bool WebServer::processRequest(){
 		}
 	}
 
+	// The endpoint is not registered, if querying for "/", fallback to the default page. Else, return false.
+	if (trimmedUrl.indexOf("GET / HTTP/") >= 0) {
+		sendDefaultRootPage(queryString);
+		return true;
+	}
+
 	return false;
+}
+
+void WebServer::setDefaultPageTitle(String newPageTitle) {
+	defaultPageTitle = newPageTitle;
+}
+
+void WebServer::sendDefaultRootPage(String queryString) {
+    send200();
+
+    sendWebPageHeadAndOpenBody();
+
+    sendWiFiInfos();
+	sendEndpointsList();
+
+	client.println("<H2>QueryString</H2>");
+	client.println(queryString);
+
+	sendWebPageFootAndCloseBody();
 }
 
 void WebServer::sendWiFiInfos() {

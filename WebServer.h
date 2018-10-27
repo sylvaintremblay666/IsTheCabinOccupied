@@ -27,16 +27,18 @@ public:
 
 
 	void send404(void);
-	void sendWebPageHead(void);
-	void sendWebPageFoot();
+	void sendWebPageHeadAndOpenBody();
+	void sendWebPageFootAndCloseBody();
 
 	void sendEndpointsList(void);
 	void sendWiFiInfos(void);
+	void sendDefaultRootPage(String);
 
 	bool processRequest(void);
 
 
 	bool registerEndpoint(String, String, CallbackFct);
+	void setDefaultPageTitle(String);
 
 private:
 	typedef struct {
@@ -53,6 +55,7 @@ private:
 	String header;
 	WiFiServer *server;
 	WiFiClient client;
+	String defaultPageTitle = "ESP8266 Web Server";
 
     Callback* callbacks;
 
