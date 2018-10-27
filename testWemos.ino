@@ -60,8 +60,8 @@ void setup()
 	sendToSlack("Sensor connected to WiFi SSID: " + WiFi.SSID());
 	sendToSlack("IP address: " + WiFi.localIP().toString());
 
-	webServer.registerEndpoint("GET /", "", rootCallBack);
-	webServer.registerEndpoint("GET /cabinStatus", "Get the status of the cabin (Occupied/Vacant)", cabinStatusCallBack);
+	webServer.registerEndpoint("GET /", "", rootCallback);
+	webServer.registerEndpoint("GET /cabinStatus", "Get the status of the cabin (Occupied/Vacant)", cabinStatusCallback);
 }
 
 // The loop function is called in an endless loop
@@ -80,16 +80,12 @@ void loop()
 
 }
 
-bool rootCallBack(void *webServer, WiFiClient *client) {
-    WebServer *ws = (WebServer*) webServer;
-
-    debug("Into callBack!");
-
+bool rootCallback(WebServer *ws, WiFiClient *client) {
     ws->send200();
 
     ws->sendWebPageHead();
 
-	client->println("<H2>Available Endpoints</H2>");
+    ws->sendWiFiInfos();
 	ws->sendEndpointsList();
 
 	ws->sendWebPageFoot();
@@ -97,9 +93,7 @@ bool rootCallBack(void *webServer, WiFiClient *client) {
 	return true;
 }
 
-bool cabinStatusCallBack(void *webServer, WiFiClient *client) {
-    WebServer *ws = (WebServer*) webServer;
-
+bool cabinStatusCallback(WebServer *ws, WiFiClient *client) {
     ws->send200();
 
     if(isTriggered()){

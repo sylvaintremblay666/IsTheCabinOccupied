@@ -16,8 +16,8 @@ void sendWebPageHead(WiFiClient*);
 void sendWebPageFoot(WiFiClient*);
 void sendWebPageContent(WiFiClient*);
 
-bool rootCallBack(void*, WiFiClient*);
-bool cabinStatusCallBack(void*, WiFiClient*);
+bool rootCallback(WebServer*, WiFiClient*);
+bool cabinStatusCallback(WebServer*, WiFiClient*);
 
 bool isTriggered(void);
 void processRequest(WiFiClient*);

@@ -13,21 +13,28 @@
 
 class WebServer {
 public:
-	typedef bool (*CallbackFct)(void*, WiFiClient*);
+	typedef bool (*CallbackFct)(WebServer*, WiFiClient*);
 
-	WebServer();
-	virtual ~WebServer();
+	WebServer(void);
+	virtual ~WebServer(void);
 
 	void checkForClientAndProcessRequest(void);
 
-	void send200();
-	void send404();
-	void sendWebPageHead();
+	/**
+	 * Sends a "HTTP/1.1 200 OK" along with the content-type and connection: close
+	 */
+	void send200(void);
+
+
+	void send404(void);
+	void sendWebPageHead(void);
 	void sendWebPageFoot();
 
-	void sendEndpointsList();
+	void sendEndpointsList(void);
+	void sendWiFiInfos(void);
 
-	bool processRequest();
+	bool processRequest(void);
+
 
 	bool registerEndpoint(String, String, CallbackFct);
 
@@ -40,6 +47,8 @@ private:
 
 	short maxCallbacks = 5;
 	short nbCallbacks = 0;
+
+	const String tdStyle = "style=\"border: 1px solid black;padding-right: 10px;padding-left: 10px\"";;
 
 	String header;
 	WiFiServer *server;
