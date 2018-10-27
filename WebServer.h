@@ -13,7 +13,7 @@
 
 class WebServer {
 public:
-	typedef bool (*CallbackFct)(WebServer*, WiFiClient*);
+	typedef bool (*CallbackFct)(WebServer*, WiFiClient*, String);
 
 	WebServer(void);
 	virtual ~WebServer(void);

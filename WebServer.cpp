@@ -46,7 +46,7 @@ void WebServer::checkForClientAndProcessRequest(void){
 						debug("-----------");
 
 						if(!processRequest()){
-							debug("processRequest failed, sending 404");
+							debug("processRequest failed (endpoint not registered), sending 404");
 							send404();
 						}
 
@@ -70,13 +70,40 @@ void WebServer::checkForClientAndProcessRequest(void){
 }
 
 /**
- * Used to register an endpoint in the web server along with a callback method to call
- * when the endpoint is invoked.
+ * Used to register an endpoint in the web server along with a callback method to invoke
+ * when the endpoint receive an incoming request.
  *
+ * ------------------------------------
  * Callback method signature:
  *
- * bool rootCallBack(void *webServer, WiFiClient *client)
+ * bool rootCallBack(WebServer *ws, WiFiClient *client, String queryString)
  *
+ * The callback method is responsible for sending the response code and body. It needs to:
+ *
+ * - Properly send the response code followed by a blank line. Ex.:
+ *		client->println("HTTP/1.1 200 OK");
+ *		client->println("Content-type:text/html");
+ *		client->println("Connection: close");
+ * 		client->println();
+ *
+ * - Send the body. Ex.:
+ *		client->println("<!DOCTYPE html><html>");
+ *		client->println("<head><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">");
+ *		client->println("<link rel=\"icon\" href=\"data:,\">");
+ * 		client->println("<body>");
+ * 		client->println("<H1>Hello, World!</H1>");
+ * 		client->println("</body></html>);
+ *
+ * Methods are available in the WebServer* instance received in parameter (*ws) to send generic
+ * response codes / html response parts, look around and you'll see.
+ *
+ * The parameters of the callback are:
+ * 		WebServer *ws      : the instance of the WebServer class calling the callback, you can use its methods like "ws->send200()"
+ * 		WiFiClient *client : the WiFiClient instance you have to use to send the response back to the client (client.println)
+ * 		String queryString : the queryString sent along with the request
+ *
+ * The return value of the callback function is currently not used.
+ * ------------------------------------
  *
  * @param methodAndPath Method and path. ex: "GET /my/endpoint" (case sensitive)
  * @param description   A description for this endpoint
@@ -142,9 +169,25 @@ void WebServer::sendWebPageFoot() {
 }
 
 bool WebServer::processRequest(){
+	debug("Starting to process request");
+
+	// Keep only the first line of the header
+	String fullUrl = header.substring(0, header.indexOf('\n'));
+	debug("fullUrl: " + fullUrl);
+
+	// If there's a query string, extract it
+	String queryString = "";
+	String trimmedUrl = fullUrl;
+	if(fullUrl.indexOf("?") > 0) {
+		queryString = fullUrl.substring(fullUrl.indexOf("?") + 1, fullUrl.indexOf(" HTTP/"));
+		trimmedUrl = fullUrl.substring(0, fullUrl.indexOf("?")) + fullUrl.substring(fullUrl.indexOf(" HTTP/"), fullUrl.length());
+	}
+	debug("trimmedUrl : " + trimmedUrl);
+	debug("queryString: " + queryString);
+
 	for(short i = 0; i < nbCallbacks; i++){
-		if (header.indexOf(callbacks[i].methodAndPath + " HTTP") >= 0){
-			callbacks[i].fct(this, &client);
+		if (trimmedUrl.indexOf(callbacks[i].methodAndPath + " HTTP/") >= 0){
+			callbacks[i].fct(this, &client, queryString);
 			return true;
 		}
 	}

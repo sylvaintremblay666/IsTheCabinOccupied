@@ -80,7 +80,7 @@ void loop()
 
 }
 
-bool rootCallback(WebServer *ws, WiFiClient *client) {
+bool rootCallback(WebServer *ws, WiFiClient *client, String queryString) {
     ws->send200();
 
     ws->sendWebPageHead();
@@ -88,12 +88,15 @@ bool rootCallback(WebServer *ws, WiFiClient *client) {
     ws->sendWiFiInfos();
 	ws->sendEndpointsList();
 
+	client->println("<H2>QueryString</H2>");
+	client->println(queryString);
+
 	ws->sendWebPageFoot();
 
 	return true;
 }
 
-bool cabinStatusCallback(WebServer *ws, WiFiClient *client) {
+bool cabinStatusCallback(WebServer *ws, WiFiClient *client, String queryString) {
     ws->send200();
 
     if(isTriggered()){
