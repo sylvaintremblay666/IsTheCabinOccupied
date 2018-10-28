@@ -4,13 +4,14 @@
 #include "testWemos.h"
 #include "WiFiManager.h"
 #include "WebServer.h"
+#include "KeyValueFlash.h"
 
 #define LED D8
 #define OnBoardLED D2
 #define ProxSensor D9
 
 // Comment this line to disable serial debug output
-#define __DEBUG__
+// #define __DEBUG__
 
 // To store the state of the LED
 String ledState = "On";
@@ -22,6 +23,8 @@ bool sensorState;
 WiFiManager wifiManager;
 
 WebServer webServer;
+
+KeyValueFlash config;
 
 // Slack
 #define WEBHOOK_HOST "hooks.slack.com"
@@ -45,7 +48,6 @@ void setup()
 	digitalWrite(LED, LOW);
 	digitalWrite(OnBoardLED, LOW);
 
-
 	wifiManager.autoConnect("CabinSensor");
 
 	digitalWrite(LED, HIGH);
@@ -60,8 +62,16 @@ void setup()
 	sendToSlack("Sensor connected to WiFi SSID: " + WiFi.SSID());
 	sendToSlack("IP address: " + WiFi.localIP().toString());
 
+	// Register the WebServer endpoints and their callbacks
 	webServer.setDefaultPageTitle("CabinSensor");
 	webServer.registerEndpoint("GET /cabinStatus", "Get the status of the cabin (Occupied/Vacant)", cabinStatusCallback);
+	webServer.registerEndpoint("GET /flash/read", "Get raw content of the config file from the flash", readFlashCallback);
+	//webServer.registerEndpoint("GET /flash/write", "Write the query string as-is to the config file on the flash", writeFlashCallback);
+	webServer.registerEndpoint("GET /flash/clear", "Clears the config file", clearConfigFileCallback);
+
+	webServer.registerEndpoint("GET /config/get", "Get an element from the config", getConfigKeyCallback);
+	webServer.registerEndpoint("GET /config/set", "Set an element in the config", setConfigKeyCallback);
+
 }
 
 // The loop function is called in an endless loop
@@ -88,6 +98,52 @@ bool cabinStatusCallback(WebServer *ws, WiFiClient *client, String queryString) 
     } else {
     	client->println("Vacant");
     }
+
+	return true;
+}
+
+bool readFlashCallback(WebServer *ws, WiFiClient *client, String queryString) {
+    ws->send200();
+
+    client->println("<H2>Config file raw content</H2>");
+    client->println(config.getRawContent());
+
+	return true;
+}
+
+bool writeFlashCallback(WebServer *ws, WiFiClient *client, String queryString) {
+    ws->send200();
+
+    config.writeRawContent(queryString);
+    client->println("Success");
+
+	return true;
+}
+
+bool getConfigKeyCallback(WebServer *ws, WiFiClient *client, String queryString) {
+    ws->send200();
+
+    client->println(config.getValue(queryString));
+
+	return true;
+}
+
+bool setConfigKeyCallback(WebServer *ws, WiFiClient *client, String queryString) {
+    ws->send200();
+
+    String key = queryString.substring(0, queryString.indexOf('='));
+    String val= queryString.substring(queryString.indexOf('=') + 1, queryString.length());
+    config.setValue(key, val);
+    client->println("Success");
+
+	return true;
+}
+
+bool clearConfigFileCallback(WebServer *ws, WiFiClient *client, String queryString) {
+    ws->send200();
+
+    config.clearConfigFile();
+    client->println("Success");
 
 	return true;
 }

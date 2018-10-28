@@ -9,7 +9,7 @@
 #include "WiFiManager.h"
 
 // Comment this line to disable serial debug output
-#define __WEBSERVER_DEBUG__
+// #define __WEBSERVER_DEBUG__
 
 WebServer::WebServer() {
 	server = new WiFiServer(80);
@@ -32,7 +32,6 @@ void WebServer::checkForClientAndProcessRequest(void){
 		while (client.connected()) {    // loop while the client's connected
 			if (client.available()) {   // if there's bytes to read from the client,
 				char c = client.read(); // read a byte, then
-				Serial.write(c);        // print it out the serial monitor
 				header += c;
 				if (c == '\n') {        // if the byte is a newline character
 					// if the current line is blank, you got two newline characters in a row.
@@ -216,7 +215,11 @@ void WebServer::sendDefaultRootPage(String queryString) {
 	sendEndpointsList();
 
 	client.println("<H2>QueryString</H2>");
-	client.println(queryString);
+	if (queryString == "") {
+		client.println("No query string");
+	} else {
+		client.println(queryString);
+	}
 
 	sendWebPageFootAndCloseBody();
 }

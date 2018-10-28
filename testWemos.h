@@ -17,6 +17,12 @@ void sendWebPageFoot(WiFiClient*);
 void sendWebPageContent(WiFiClient*);
 
 bool cabinStatusCallback(WebServer*, WiFiClient*, String);
+bool readFlashCallback(WebServer*, WiFiClient*, String);
+bool writeFlashCallback(WebServer*, WiFiClient*, String);
+
+bool clearConfigFileCallback(WebServer*, WiFiClient*, String);
+bool getConfigKeyCallback(WebServer*, WiFiClient*, String);
+bool setConfigKeyCallback(WebServer*, WiFiClient*, String);
 
 bool isTriggered(void);
 void processRequest(WiFiClient*);
