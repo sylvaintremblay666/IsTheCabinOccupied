@@ -156,6 +156,13 @@ void WebServer::send200() {
     client.println();
 }
 
+void WebServer::send201() {
+    client.println("HTTP/1.1 201 Created");
+    client.println("Content-type:text/html");
+    client.println("Connection: close");
+    client.println();
+}
+
 void WebServer::send404() {
     client.println("HTTP/1.1 404 NOT FOUND");
     client.println("Content-type:text/html");

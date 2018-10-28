@@ -70,7 +70,7 @@ void setup()
 	webServer.registerEndpoint("GET /flash/clear", "Clears the config file", clearConfigFileCallback);
 
 	webServer.registerEndpoint("GET /config/get/{}", "Get an element from the config", getConfigKeyCallback);
-	webServer.registerEndpoint("GET /config/set", "Set an element in the config", setConfigKeyCallback);
+	webServer.registerEndpoint("GET /config/set/{}", "Set an element in the config, queryString is the value", setConfigKeyCallback);
 
 }
 
@@ -132,12 +132,10 @@ bool getConfigKeyCallback(WebServer *ws, WiFiClient *client, String queryString,
 	return true;
 }
 
-bool setConfigKeyCallback(WebServer *ws, WiFiClient *client, String queryString, String restArg1) {
-    ws->send200();
+bool setConfigKeyCallback(WebServer *ws, WiFiClient *client, String queryString, String key) {
+    ws->send201();
 
-    String key = queryString.substring(0, queryString.indexOf('='));
-    String val= queryString.substring(queryString.indexOf('=') + 1, queryString.length());
-    config.setValue(key, val);
+    config.setValue(key, queryString);
     client->println("Success");
 
 	return true;

@@ -24,6 +24,7 @@ public:
 	 * Sends a "HTTP/1.1 200 OK" along with the content-type and connection: close
 	 */
 	void send200(void);
+	void send201(void);
 
 
 	void send404(void);
