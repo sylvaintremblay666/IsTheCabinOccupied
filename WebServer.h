@@ -13,7 +13,7 @@
 
 class WebServer {
 public:
-	typedef bool (*CallbackFct)(WebServer*, WiFiClient*, String);
+	typedef bool (*CallbackFct)(WebServer*, WiFiClient*, String, String);
 
 	WebServer(void);
 	virtual ~WebServer(void);
@@ -44,7 +44,11 @@ private:
 	typedef struct {
 			CallbackFct fct;
 			String methodAndPath;
+			String methodAndPathToMatch;
 			String description;
+			short nbRestArgs = 0;
+
+			bool isRest(void){ return nbRestArgs > 0; }
 		} Callback;
 
 	short maxCallbacks = 5;
@@ -57,7 +61,7 @@ private:
 	WiFiClient client;
 	String defaultPageTitle = "ESP8266 Web Server";
 
-    Callback* callbacks;
+    Callback* callbacksArray;
 
     void debug(String);
 };

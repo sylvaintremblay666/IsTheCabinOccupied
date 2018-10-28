@@ -69,7 +69,7 @@ void setup()
 	//webServer.registerEndpoint("GET /flash/write", "Write the query string as-is to the config file on the flash", writeFlashCallback);
 	webServer.registerEndpoint("GET /flash/clear", "Clears the config file", clearConfigFileCallback);
 
-	webServer.registerEndpoint("GET /config/get", "Get an element from the config", getConfigKeyCallback);
+	webServer.registerEndpoint("GET /config/get/{}", "Get an element from the config", getConfigKeyCallback);
 	webServer.registerEndpoint("GET /config/set", "Set an element in the config", setConfigKeyCallback);
 
 }
@@ -90,7 +90,7 @@ void loop()
 
 }
 
-bool cabinStatusCallback(WebServer *ws, WiFiClient *client, String queryString) {
+bool cabinStatusCallback(WebServer *ws, WiFiClient *client, String queryString, String restArg1) {
     ws->send200();
 
     if(isTriggered()){
@@ -102,7 +102,7 @@ bool cabinStatusCallback(WebServer *ws, WiFiClient *client, String queryString) 
 	return true;
 }
 
-bool readFlashCallback(WebServer *ws, WiFiClient *client, String queryString) {
+bool readFlashCallback(WebServer *ws, WiFiClient *client, String queryString, String restArg1) {
     ws->send200();
 
     client->println("<H2>Config file raw content</H2>");
@@ -111,7 +111,7 @@ bool readFlashCallback(WebServer *ws, WiFiClient *client, String queryString) {
 	return true;
 }
 
-bool writeFlashCallback(WebServer *ws, WiFiClient *client, String queryString) {
+bool writeFlashCallback(WebServer *ws, WiFiClient *client, String queryString, String restArg1) {
     ws->send200();
 
     config.writeRawContent(queryString);
@@ -120,15 +120,19 @@ bool writeFlashCallback(WebServer *ws, WiFiClient *client, String queryString) {
 	return true;
 }
 
-bool getConfigKeyCallback(WebServer *ws, WiFiClient *client, String queryString) {
-    ws->send200();
-
-    client->println(config.getValue(queryString));
+bool getConfigKeyCallback(WebServer *ws, WiFiClient *client, String queryString, String configKey) {
+    String value = config.getValue(configKey);
+    if (!value.equals("")) {
+    	ws->send200();
+    	client->println(value);
+    } else {
+    	ws->send404();
+    }
 
 	return true;
 }
 
-bool setConfigKeyCallback(WebServer *ws, WiFiClient *client, String queryString) {
+bool setConfigKeyCallback(WebServer *ws, WiFiClient *client, String queryString, String restArg1) {
     ws->send200();
 
     String key = queryString.substring(0, queryString.indexOf('='));
@@ -139,7 +143,7 @@ bool setConfigKeyCallback(WebServer *ws, WiFiClient *client, String queryString)
 	return true;
 }
 
-bool clearConfigFileCallback(WebServer *ws, WiFiClient *client, String queryString) {
+bool clearConfigFileCallback(WebServer *ws, WiFiClient *client, String queryString, String restArg1) {
     ws->send200();
 
     config.clearConfigFile();

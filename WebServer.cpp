@@ -9,18 +9,18 @@
 #include "WiFiManager.h"
 
 // Comment this line to disable serial debug output
-// #define __WEBSERVER_DEBUG__
+#define __WEBSERVER_DEBUG__
 
 WebServer::WebServer() {
 	server = new WiFiServer(80);
 	server->begin();
 
-	callbacks = new Callback[maxCallbacks];
+	callbacksArray = new Callback[maxCallbacks];
 }
 
 WebServer::~WebServer() {
 	delete server;
-	delete [] callbacks;
+	delete [] callbacksArray;
 }
 
 void WebServer::checkForClientAndProcessRequest(void){
@@ -70,12 +70,19 @@ void WebServer::checkForClientAndProcessRequest(void){
 
 /**
  * Used to register an endpoint in the web server along with a callback method to invoke
- * when the endpoint receive an incoming request.
+ * when the endpoint receive an incoming request. Single level REST argument is supported.
+ * To configure an endpoint for REST argument support, use the {} placeholder at the end
+ * of your path in the "methodAndPath" argument. Ex.:
+ *
+ *   registerEndpoint("GET /config/key/{}", "endpoint to get value for a key", myCallbackFct);
+ *
+ * When the callback method will be invoked, the "restArg1" parameter will contain the value
+ * of the url corresponding to the "{}".
  *
  * ------------------------------------
  * Callback method signature:
  *
- * bool rootCallBack(WebServer *ws, WiFiClient *client, String queryString)
+ * bool rootCallBack(WebServer *ws, WiFiClient *client, String queryString, String restArg1)
  *
  * The callback method is responsible for sending the response code and body. It needs to:
  *
@@ -100,6 +107,7 @@ void WebServer::checkForClientAndProcessRequest(void){
  * 		WebServer *ws      : the instance of the WebServer class calling the callback, you can use its methods like "ws->send200()"
  * 		WiFiClient *client : the WiFiClient instance you have to use to send the response back to the client (client.println)
  * 		String queryString : the queryString sent along with the request
+ * 		String restArg1    : for REST endpoint, the value of the first REST param (only single REST param is currently supported)
  *
  * The return value of the callback function is currently not used.
  * ------------------------------------
@@ -111,19 +119,30 @@ void WebServer::checkForClientAndProcessRequest(void){
  */
 bool WebServer::registerEndpoint(String methodAndPath, String description, CallbackFct fct) {
 	if (nbCallbacks == maxCallbacks) {
-		Callback* newArray = new Callback[++maxCallbacks];
+		Callback* newCallbacksArray = new Callback[++maxCallbacks];
 		for(short i = 0; i < nbCallbacks; i++){
-			newArray[i].methodAndPath = callbacks[i].methodAndPath;
-			newArray[i].fct = callbacks[i].fct;
-			newArray[i].description = callbacks[i].description;
+			newCallbacksArray[i].methodAndPath = callbacksArray[i].methodAndPath;
+			newCallbacksArray[i].methodAndPathToMatch = callbacksArray[i].methodAndPathToMatch;
+			newCallbacksArray[i].fct = callbacksArray[i].fct;
+			newCallbacksArray[i].description = callbacksArray[i].description;
+			newCallbacksArray[i].nbRestArgs = callbacksArray[i].nbRestArgs;
 		}
-		delete [] callbacks;
-		callbacks = newArray;
+		delete [] callbacksArray;
+		callbacksArray = newCallbacksArray;
 	}
 
-	callbacks[nbCallbacks].fct = fct;
-	callbacks[nbCallbacks].methodAndPath = methodAndPath;
-	callbacks[nbCallbacks].description = description;
+	callbacksArray[nbCallbacks].fct = fct;
+	callbacksArray[nbCallbacks].methodAndPath = methodAndPath;
+	callbacksArray[nbCallbacks].description = description;
+
+	// Check if there's an argument in the registered path (REST support)
+	short argIndex = methodAndPath.indexOf("/{}");
+	if (argIndex > 0) {
+		callbacksArray[nbCallbacks].nbRestArgs = 1;
+		callbacksArray[nbCallbacks].methodAndPathToMatch = methodAndPath.substring(0, argIndex);
+	} else {
+		callbacksArray[nbCallbacks].methodAndPathToMatch = methodAndPath;
+	}
 
 	nbCallbacks++;
 
@@ -178,23 +197,41 @@ bool WebServer::processRequest(){
 
 	// If there's a query string, extract it
 	String queryString = "";
-	String trimmedUrl = fullUrl;
+	String urlNoQueryString = fullUrl;
 	if(fullUrl.indexOf("?") > 0) {
 		queryString = fullUrl.substring(fullUrl.indexOf("?") + 1, fullUrl.indexOf(" HTTP/"));
-		trimmedUrl = fullUrl.substring(0, fullUrl.indexOf("?")) + fullUrl.substring(fullUrl.indexOf(" HTTP/"), fullUrl.length());
+		urlNoQueryString = fullUrl.substring(0, fullUrl.indexOf("?")) + fullUrl.substring(fullUrl.indexOf(" HTTP/"), fullUrl.length());
 	}
-	debug("trimmedUrl : " + trimmedUrl);
-	debug("queryString: " + queryString);
+
+	// If there's a REST argument, extract it
+
+
+	debug("urlNoQueryString : " + urlNoQueryString);
+	debug("queryString      : " + queryString);
 
 	for(short i = 0; i < nbCallbacks; i++){
-		if (trimmedUrl.indexOf(callbacks[i].methodAndPath + " HTTP/") >= 0){
-			callbacks[i].fct(this, &client, queryString);
-			return true;
+		if (urlNoQueryString.indexOf(callbacksArray[i].methodAndPathToMatch) >= 0) {
+			String trimmedUrl = urlNoQueryString;
+
+			// If this endpoint is registered as REST, extract the argument (only a single argument is currently supported)
+			String restArg1 = "";
+			if (callbacksArray[i].isRest()) {
+				short httpIdx = urlNoQueryString.indexOf("HTTP/");
+				restArg1 = urlNoQueryString.substring(callbacksArray[i].methodAndPathToMatch.length() + 1, httpIdx - 1);
+				debug("REST endpoint detected, argument is: " + restArg1);
+				trimmedUrl = callbacksArray[i].methodAndPathToMatch + urlNoQueryString.substring(httpIdx - 1, urlNoQueryString.length());
+				debug("trimmedUrl: " + trimmedUrl);
+			}
+
+			if (trimmedUrl.indexOf(callbacksArray[i].methodAndPathToMatch + " HTTP/") >= 0) {
+				callbacksArray[i].fct(this, &client, queryString, restArg1);
+				return true;
+			}
 		}
 	}
 
 	// The endpoint is not registered, if querying for "/", fallback to the default page. Else, return false.
-	if (trimmedUrl.indexOf("GET / HTTP/") >= 0) {
+	if (urlNoQueryString.indexOf("GET / HTTP/") >= 0) {
 		sendDefaultRootPage(queryString);
 		return true;
 	}
@@ -242,8 +279,8 @@ void WebServer::sendEndpointsList() {
 	client.println("<table>");
 	for(short i = 0; i < nbCallbacks; i++){
 		client.println("<tr>");
-		client.println("<td " + tdStyle + ">" + callbacks[i].methodAndPath + "</td>");
-		client.println("<td " + tdStyle + ">" + callbacks[i].description + "</td>");
+		client.println("<td " + tdStyle + ">" + callbacksArray[i].methodAndPath + "</td>");
+		client.println("<td " + tdStyle + ">" + callbacksArray[i].description + "</td>");
 		client.println("</tr>");
 	}
 	client.println("</table>");
@@ -251,7 +288,7 @@ void WebServer::sendEndpointsList() {
 
 void WebServer::debug(String msg){
 #ifdef __WEBSERVER_DEBUG__
-	Serial.println(msg);
+	Serial.println("WebServer: " + msg);
 #endif // __WEBSERVER_DEBUG__
 }
 

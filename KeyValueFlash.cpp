@@ -42,7 +42,7 @@ void KeyValueFlash::writeRawContent(String rawContent) {
 String KeyValueFlash::getValue(String key) {
 	String rawConfig = configFileContent;
 
-	Serial.println("KeyValueFlash: Searching for key: " + key);
+	Serial.println("KeyValueFlash: Searching for key: \"" + key + "\"");
 
 	while(rawConfig != "") {
 		String nextKey = rawConfig.substring(0, rawConfig.indexOf('='));
@@ -55,6 +55,7 @@ String KeyValueFlash::getValue(String key) {
 
 		rawConfig = rawConfig.substring(rawConfig.indexOf(',') + 1, rawConfig.length());
 	}
+	Serial.println("Not found.");
 
 	return "";
 }
