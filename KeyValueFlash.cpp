@@ -96,6 +96,57 @@ void KeyValueFlash::readConfigFile() {
     Serial.println(configFileContent);
 
 	configFile.close();
+	parseConfigFile();
+}
+
+void KeyValueFlash::parseConfigFile() {
+	Serial.println("Parsing config file");
+
+	// Scan to find the number of elements
+	nbElements = 0;
+	String configStr = configFileContent;
+	short commaPos = configStr.indexOf(',');
+
+	while (commaPos >= 0) {
+		String elem = configStr.substring(0, commaPos);
+		short equalPos = elem.indexOf('=');
+		if (equalPos >= 0) {
+			nbElements++;
+			Serial.println("Found element: " + elem);
+		}
+
+		configStr = configStr.substring(commaPos + 1);
+		commaPos = configStr.indexOf(',');
+	}
+	Serial.println("Number of key/value pairs found: " + String(nbElements));
+
+	// Create the elements array and save the elements in there
+	if (configElements != 0) { delete[] configElements; }
+	configElements = new Pair[nbElements];
+
+	configStr = configFileContent;
+	commaPos = configStr.indexOf(',');
+	short i = 0;
+	while (commaPos >= 0) {
+		String elem = configStr.substring(0, commaPos);
+		short equalPos = elem.indexOf('=');
+		if (equalPos >= 0) {
+			configElements[i].k = elem.substring(0, equalPos);
+			configElements[i].v = elem.substring(equalPos + 1);
+			i++;
+		}
+
+		configStr = configStr.substring(commaPos + 1);
+		commaPos = configStr.indexOf(',');
+	}
+}
+
+KeyValueFlash::Pair* KeyValueFlash::getConfig(void) {
+	return configElements;
+}
+
+short KeyValueFlash::getNbElements(void) {
+	return nbElements;
 }
 
 void KeyValueFlash::clearConfigFile() {
@@ -106,8 +157,6 @@ void KeyValueFlash::clearConfigFile() {
 		return;
 	}
 
-	configFile.println("reset=true,;");
-	configFile.println("");
-	configFile.flush();
+	configFile.println(";");
 	configFile.close();
 }

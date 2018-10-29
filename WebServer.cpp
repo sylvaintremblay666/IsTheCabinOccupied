@@ -250,7 +250,7 @@ void WebServer::setDefaultPageTitle(String newPageTitle) {
 	defaultPageTitle = newPageTitle;
 }
 
-void WebServer::sendDefaultRootPage(String queryString) {
+void WebServer::sendDefaultRootPage(String queryString, bool closeFootAndBody) {
     send200();
 
     sendWebPageHeadAndOpenBody();
@@ -265,7 +265,9 @@ void WebServer::sendDefaultRootPage(String queryString) {
 		client.println(queryString);
 	}
 
-	sendWebPageFootAndCloseBody();
+	if (closeFootAndBody) {
+		sendWebPageFootAndCloseBody();
+	}
 }
 
 void WebServer::sendWiFiInfos() {

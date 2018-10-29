@@ -89,6 +89,7 @@ void setup()
 
 	// Register the WebServer endpoints and their callbacks
 	webServer->setDefaultPageTitle("CabinSensor");
+	webServer->registerEndpoint("GET /", "root page", rootCallback);
 	webServer->registerEndpoint("GET /cabinStatus", "Get the status of the cabin (Occupied/Vacant)", cabinStatusCallback);
 	webServer->registerEndpoint("GET /flash/read", "Get raw content of the config file from the flash", readFlashCallback);
 	//webServer->registerEndpoint("GET /flash/write", "Write the query string as-is to the config file on the flash", writeFlashCallback);
@@ -114,6 +115,32 @@ void loop()
 
 	webServer->checkForClientAndProcessRequest();
 
+}
+
+bool rootCallback(WebServer *ws, WiFiClient *client, String queryString, String restArg1) {
+	KeyValueFlash config;
+	String tdStyle = "style=\"border: 1px solid black;padding-right: 10px;padding-left: 10px\"";;
+
+	ws->sendDefaultRootPage(queryString, false);
+
+    client->println("<H2>Configuration parameters</H2>");
+    client->println("<table style=\"border: 1px solid black;\">");
+
+    KeyValueFlash::Pair *params = config.getConfig();
+	client->println("<tr>");
+	client->println("<th " + tdStyle + ">Key</th>");
+	client->println("<th " + tdStyle + ">Value</th>");
+	client->println("</tr>");
+    for (short i = 0; i < config.getNbElements(); i++) {
+    	client->println("<tr>");
+    	client->println("<td " + tdStyle + ">" + params[i].k + "</td>");
+    	client->println("<td " + tdStyle + ">" + params[i].v + "</td>");
+    	client->println("</tr>");
+    }
+
+    ws->sendWebPageFootAndCloseBody();
+
+	return true;
 }
 
 bool cabinStatusCallback(WebServer *ws, WiFiClient *client, String queryString, String restArg1) {

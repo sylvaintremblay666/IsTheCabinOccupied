@@ -16,6 +16,8 @@ void sendWebPageHead(WiFiClient*);
 void sendWebPageFoot(WiFiClient*);
 void sendWebPageContent(WiFiClient*);
 
+bool rootCallback(WebServer*, WiFiClient*, String, String);
+
 bool cabinStatusCallback(WebServer*, WiFiClient*, String, String);
 bool readFlashCallback(WebServer*, WiFiClient*, String, String);
 bool writeFlashCallback(WebServer*, WiFiClient*, String, String);

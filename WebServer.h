@@ -33,7 +33,8 @@ public:
 
 	void sendEndpointsList(void);
 	void sendWiFiInfos(void);
-	void sendDefaultRootPage(String);
+
+	void sendDefaultRootPage(String, bool closeFootAndBody = true);
 
 	bool processRequest(void);
 
@@ -55,7 +56,7 @@ private:
 	short maxCallbacks = 5;
 	short nbCallbacks = 0;
 
-	const String tdStyle = "style=\"border: 1px solid black;padding-right: 10px;padding-left: 10px\"";;
+	const String tdStyle = "style=\"border: 1px solid black;padding-right: 10px;padding-left: 10px\"";
 
 	String header;
 	WiFiServer *server;
