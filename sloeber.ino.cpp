@@ -2,7 +2,7 @@
 //This is a automatic generated file
 //Please do not modify this file
 //If you touch this file your change will be overwritten during the next build
-//This file has been generated on 2018-10-29 11:12:26
+//This file has been generated on 2018-10-29 11:40:36
 
 #include "Arduino.h"
 #include "Arduino.h"
@@ -21,6 +21,7 @@ bool readFlashCallback(WebServer *ws, WiFiClient *client, String queryString, St
 bool writeFlashCallback(WebServer *ws, WiFiClient *client, String queryString, String restArg1) ;
 bool getConfigKeyCallback(WebServer *ws, WiFiClient *client, String queryString, String configKey) ;
 bool setConfigKeyCallback(WebServer *ws, WiFiClient *client, String queryString, String key) ;
+bool deleteConfigKeyCallback(WebServer *ws, WiFiClient *client, String queryString, String key) ;
 bool clearConfigFileCallback(WebServer *ws, WiFiClient *client, String queryString, String restArg1) ;
 bool resetWiFiCallback(WebServer *ws, WiFiClient *client, String queryString, String restArg1) ;
 bool isTriggered(void) ;

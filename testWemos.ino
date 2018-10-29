@@ -24,10 +24,7 @@ bool sensorState;
 WebServer *webServer;
 
 // Slack
-#define WEBHOOK_HOST "hooks.slack.com"
-#define WEBHOOK_PATH "/services/T0FC7JHLP/BDLBRNSJ2/WlMaQHi3YP0qTxlVshwCSYZf" // stremblay
-//#define WEBHOOK_PATH "/services/T0FHQRZT8/BDJC44JQ1/8kdHBtx2GOmvTHVQvkIaqGCl" // ingeno
-
+String slackWebHookToken = "";
 
 //The setup function is called once at startup of the sketch
 void setup()
@@ -50,6 +47,7 @@ void setup()
 
 	KeyValueFlash *config = new KeyValueFlash();
 	String lastIP = config->getValue("lastIP");
+	slackWebHookToken = config->getValue("slack_token");
 	delete config;
 
     WiFiManager wifiManager;
@@ -62,14 +60,6 @@ void setup()
     }
 
 	webServer = new WebServer();
-//	wifiManager.startConfigPortal("ToTo");
-
-//	WiFi.begin("666", "shantimongrosminetfou");
-
-	while (WiFi.status() != WL_CONNECTED) {
-		delay(500);
-		Serial.print(".");
-	}
 
 	digitalWrite(LED, HIGH);
 	digitalWrite(OnBoardLED, HIGH);
@@ -97,6 +87,8 @@ void setup()
 
 	webServer->registerEndpoint("GET /config/get/{}", "Get an element from the config", getConfigKeyCallback);
 	webServer->registerEndpoint("GET /config/set/{}", "Set an element in the config, queryString is the value", setConfigKeyCallback);
+	webServer->registerEndpoint("GET /config/delete/{}", "Delete an element from the config", deleteConfigKeyCallback);
+
 
 	webServer->registerEndpoint("GET /wifi/reset", "Reset the WiFi configuration", resetWiFiCallback);
 }
@@ -199,6 +191,16 @@ bool setConfigKeyCallback(WebServer *ws, WiFiClient *client, String queryString,
 	return true;
 }
 
+bool deleteConfigKeyCallback(WebServer *ws, WiFiClient *client, String queryString, String key) {
+	KeyValueFlash config;
+	ws->send200();
+
+    config.deleteKey(key);
+    client->println("Success");
+
+	return true;
+}
+
 bool clearConfigFileCallback(WebServer *ws, WiFiClient *client, String queryString, String restArg1) {
 	KeyValueFlash config;
 	ws->send200();
@@ -281,8 +283,12 @@ void sendSslPOSTnoCertCheck(String host, String url, String msg){
 void sendToSlack(String s) {
 	WiFiClientSecure client;
 
-	String msg = "{\"text\":\"" + s + "\"}";
-	sendSslPOSTnoCertCheck(WEBHOOK_HOST, WEBHOOK_PATH, msg);
+	if (slackWebHookToken.equals("")) {
+		Serial.println("ERROR: Slack token not configured (slack_token configuration parameter)");
+	} else {
+		String msg = "{\"text\":\"" + s + "\"}";
+		sendSslPOSTnoCertCheck("hooks.slack.com", String("/services/" + slackWebHookToken), msg);
+	}
 }
 
 void debug(String msg) {

@@ -24,6 +24,7 @@ bool writeFlashCallback(WebServer*, WiFiClient*, String, String);
 
 bool clearConfigFileCallback(WebServer*, WiFiClient*, String, String);
 bool getConfigKeyCallback(WebServer*, WiFiClient*, String, String);
+bool deleteConfigKeyCallback(WebServer*, WiFiClient*, String, String);
 bool setConfigKeyCallback(WebServer*, WiFiClient*, String, String);
 
 bool resetWiFiCallback(WebServer*, WiFiClient*, String, String);
