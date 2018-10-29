@@ -24,8 +24,10 @@ bool clearConfigFileCallback(WebServer*, WiFiClient*, String, String);
 bool getConfigKeyCallback(WebServer*, WiFiClient*, String, String);
 bool setConfigKeyCallback(WebServer*, WiFiClient*, String, String);
 
+bool resetWiFiCallback(WebServer*, WiFiClient*, String, String);
+
 bool isTriggered(void);
-void processRequest(WiFiClient*);
+bool isButtonPressed(void);
 
 void sendToSlack(String);
 void sendSslPOSTnoCertCheck(String, String, String);

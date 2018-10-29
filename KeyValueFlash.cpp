@@ -84,7 +84,7 @@ void KeyValueFlash::setValue(String key, String val) {
 }
 
 void KeyValueFlash::readConfigFile() {
-	File configFile = SPIFFS.open(configFileName, "r");
+	File configFile = SPIFFS.open(configFileName, "r+");
 	if (!configFile) {
 	    Serial.println("KeyValueFlash: file open failed (when trying to read)");
 	    configFileContent = ";";

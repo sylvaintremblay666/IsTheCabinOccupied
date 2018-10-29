@@ -27,7 +27,7 @@ public:
 
 private:
 	String configFileName = "default";
-	String configFileContent;
+	String configFileContent = ";";
 
 	void readConfigFile(void);
 };
