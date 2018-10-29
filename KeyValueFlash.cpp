@@ -83,6 +83,29 @@ void KeyValueFlash::setValue(String key, String val) {
 	readConfigFile();
 }
 
+void KeyValueFlash::deleteKey(String key) {
+	File configFile = SPIFFS.open(configFileName, "w+");
+
+    String rawConfig = configFileContent;
+
+    Serial.println(String("Deleting key: " + key));
+	while(rawConfig != "") {
+		String nextKey = rawConfig.substring(0, rawConfig.indexOf('='));
+		String nextVal = rawConfig.substring(rawConfig.indexOf('=') + 1, rawConfig.indexOf(','));
+
+		if(!nextKey.equals(key)) {
+			configFile.print(nextKey + "=" + nextVal + ",");
+		}
+
+		rawConfig = rawConfig.substring(rawConfig.indexOf(',') + 1, rawConfig.length());
+	}
+
+	configFile.println(";");
+
+	configFile.close();
+	readConfigFile();
+}
+
 void KeyValueFlash::readConfigFile() {
 	File configFile = SPIFFS.open(configFileName, "r+");
 	if (!configFile) {

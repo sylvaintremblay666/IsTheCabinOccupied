@@ -24,6 +24,7 @@ public:
 
 	String getValue(String);
 	void setValue(String, String);
+	void deleteKey(String);
 
 	short getNbElements(void);
 	Pair* getConfig(void);
