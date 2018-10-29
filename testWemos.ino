@@ -12,9 +12,10 @@
 #define DoorSensorPin D6
 #define NeoPixelPin   D7
 
-#define RED   64,  0,  0
-#define GREEN  0, 64,  0
-#define BLUE   0,  0, 64
+#define RED    0, 255,  0
+#define GREEN 255,  0,  0
+#define BLUE   0,  0, 255
+#define ORANGE 165, 255, 0
 
 // Comment this line to disable serial debug output
 #define __DEBUG__
@@ -46,9 +47,11 @@ void setup()
 
 	// Initialize the NeoPixel
 	pinMode(NeoPixelPin, OUTPUT);
-	neoPixel.setBrightness(100);
+	neoPixel.setBrightness(50);
 	neoPixel.begin();
-	setPixelColor(RED);
+	neoPixel.setPixelColor(0, RED);
+	neoPixel.show();
+
 
 	// Initialize the button pin
 	pinMode(ButtonPin, INPUT);
@@ -62,6 +65,8 @@ void setup()
 
     if (isButtonPressed()) {
     	wifiManager.setLastIP(lastIP);
+    	neoPixel.setPixelColor(0,  ORANGE);
+    	neoPixel.show();
     	wifiManager.startConfigPortal("SensorConfig");
     } else {
     	wifiManager.autoConnect("SensorConfig");
@@ -70,19 +75,25 @@ void setup()
 	webServer = new WebServer();
 
 	digitalWrite(OnBoardLED, HIGH);
-	setPixelColor(BLUE);
+	neoPixel.setPixelColor(0,  BLUE);
+	neoPixel.show();
 
-	// Print local IP address and start web server
+	// Print local IP address
 	debug("");
 	debug("WiFi connected.");
 	debug("IP address: " + WiFi.localIP().toString());
 
+	// Save IP address to flash memory
 	config = new KeyValueFlash();
 	config->setValue("lastIP", WiFi.localIP().toString());
 	delete config;
 
+	// Send WiFi infos to slack
 	sendToSlack("Sensor connected to WiFi SSID: " + WiFi.SSID());
 	sendToSlack("IP address: " + WiFi.localIP().toString());
+
+	neoPixel.setPixelColor(0,  GREEN);
+	neoPixel.show();
 
 	// Register the WebServer endpoints and their callbacks
 	webServer->setDefaultPageTitle("CabinSensor");
@@ -296,11 +307,6 @@ void sendToSlack(String s) {
 		String msg = "{\"text\":\"" + s + "\"}";
 		sendSslPOSTnoCertCheck("hooks.slack.com", String("/services/" + slackWebHookToken), msg);
 	}
-}
-
-void setPixelColor(short r, short g, short b) {
-	neoPixel.setPixelColor(0,g,r,b);
-	neoPixel.show();
 }
 
 void debug(String msg) {

@@ -2,7 +2,7 @@
 //This is a automatic generated file
 //Please do not modify this file
 //If you touch this file your change will be overwritten during the next build
-//This file has been generated on 2018-10-29 12:57:41
+//This file has been generated on 2018-10-29 13:59:18
 
 #include "Arduino.h"
 #include "Arduino.h"
@@ -29,7 +29,6 @@ bool isTriggered(void) ;
 bool isButtonPressed(void) ;
 void sendSslPOSTnoCertCheck(String host, String url, String msg);
 void sendToSlack(String s) ;
-void setPixelColor(short r, short g, short b) ;
 void debug(String msg) ;
 
 #include "testWemos.ino"
