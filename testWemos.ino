@@ -17,6 +17,8 @@
 #define BLUE   0,  0, 255
 #define ORANGE 165, 255, 0
 
+#define DOOR_LATCH_DELAY_MS 2000
+
 // Comment this line to disable serial debug output
 #define __DEBUG__
 
@@ -24,9 +26,13 @@
 Adafruit_NeoPixel neoPixel = Adafruit_NeoPixel(1, NeoPixelPin, NEO_RGB + NEO_KHZ800);
 
 // To store the state of the Sensor
-bool sensorState;
+bool sensorLastState;
 
 WebServer *webServer;
+
+short latch = 0;
+
+unsigned long lastMillisDoorLatch = millis();
 
 // Slack
 String slackWebHookToken = "";
@@ -39,7 +45,7 @@ void setup()
 
 	// Initialize reed sensor pin and the sensor state
 	pinMode(DoorSensorPin,INPUT);
-	sensorState = isTriggered();
+	sensorLastState = isTriggered();
 
 	// Initialize the onboard led
 	pinMode(OnBoardLED, OUTPUT);
@@ -114,13 +120,21 @@ void setup()
 // The loop function is called in an endless loop
 void loop()
 {
-	if (sensorState != isTriggered()) {
-		sensorState = !sensorState;
-		if(sensorState) {
-			sendToSlack("Occupied");
-		} else {
-			sendToSlack("Empty");
+	unsigned long currentMillis = millis();
+
+	bool sensorState = isTriggered();
+	if (sensorLastState != sensorState) {
+		if (currentMillis - lastMillisDoorLatch > DOOR_LATCH_DELAY_MS) {
+			lastMillisDoorLatch = currentMillis;
+			sensorLastState = sensorState;
+			if (sensorState) {
+				sendToSlack("Occupied");
+			} else {
+				sendToSlack("Empty");
+			}
 		}
+	} else {
+		lastMillisDoorLatch = currentMillis;
 	}
 
 	webServer->checkForClientAndProcessRequest();
@@ -146,6 +160,14 @@ bool rootCallback(WebServer *ws, WiFiClient *client, String queryString, String 
     	client->println("<td " + tdStyle + ">" + params[i].k + "</td>");
     	client->println("<td " + tdStyle + ">" + params[i].v + "</td>");
     	client->println("</tr>");
+    }
+    client->println("</table>");
+
+    client->println("<H2>Door sensor status</H2>");
+    if (isTriggered()) {
+    	client->println("Door closed");
+    } else {
+    	client->println("Door open");
     }
 
     ws->sendWebPageFootAndCloseBody();
