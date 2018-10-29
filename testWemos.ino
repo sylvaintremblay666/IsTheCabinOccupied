@@ -1,25 +1,29 @@
 #include "Arduino.h"
 #include "ESP8266WiFi.h"
 #include "ESP8266HTTPClient.h"
+#include "Adafruit_NeoPixel.h"
 #include "testWemos.h"
 #include "WiFiManager.h"
 #include "WebServer.h"
 #include "KeyValueFlash.h"
 
-#define LED D8
 #define OnBoardLED D2
-#define ProxSensor D9
-#define ButtonPin D5
+#define ButtonPin  D5
+#define DoorSensorPin D6
+#define NeoPixelPin   D7
+
+#define RED   64,  0,  0
+#define GREEN  0, 64,  0
+#define BLUE   0,  0, 64
 
 // Comment this line to disable serial debug output
 #define __DEBUG__
 
-// To store the state of the LED
-String ledState = "On";
+// We use a NeoPixel (RGB led)
+Adafruit_NeoPixel neoPixel = Adafruit_NeoPixel(1, NeoPixelPin, NEO_RGB + NEO_KHZ800);
 
 // To store the state of the Sensor
 bool sensorState;
-
 
 WebServer *webServer;
 
@@ -33,14 +37,18 @@ void setup()
 	Serial.begin(115200);
 
 	// Initialize reed sensor pin and the sensor state
-	pinMode(ProxSensor,INPUT);
+	pinMode(DoorSensorPin,INPUT);
 	sensorState = isTriggered();
 
-	// Initialize the LED pins
-	pinMode(LED, OUTPUT);
+	// Initialize the onboard led
 	pinMode(OnBoardLED, OUTPUT);
-	digitalWrite(LED, LOW);
 	digitalWrite(OnBoardLED, LOW);
+
+	// Initialize the NeoPixel
+	pinMode(NeoPixelPin, OUTPUT);
+	neoPixel.setBrightness(100);
+	neoPixel.begin();
+	setPixelColor(RED);
 
 	// Initialize the button pin
 	pinMode(ButtonPin, INPUT);
@@ -61,9 +69,8 @@ void setup()
 
 	webServer = new WebServer();
 
-	digitalWrite(LED, HIGH);
 	digitalWrite(OnBoardLED, HIGH);
-	ledState = "On";
+	setPixelColor(BLUE);
 
 	// Print local IP address and start web server
 	debug("");
@@ -221,7 +228,7 @@ bool resetWiFiCallback(WebServer *ws, WiFiClient *client, String queryString, St
 }
 
 bool isTriggered(void) {
-	int proxSensor = digitalRead(ProxSensor);
+	int proxSensor = digitalRead(DoorSensorPin);
 	return proxSensor == LOW;
 }
 
@@ -289,6 +296,11 @@ void sendToSlack(String s) {
 		String msg = "{\"text\":\"" + s + "\"}";
 		sendSslPOSTnoCertCheck("hooks.slack.com", String("/services/" + slackWebHookToken), msg);
 	}
+}
+
+void setPixelColor(short r, short g, short b) {
+	neoPixel.setPixelColor(0,g,r,b);
+	neoPixel.show();
 }
 
 void debug(String msg) {

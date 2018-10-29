@@ -31,6 +31,7 @@ bool resetWiFiCallback(WebServer*, WiFiClient*, String, String);
 
 bool isTriggered(void);
 bool isButtonPressed(void);
+void setPixelColor(short, short, short);
 
 void sendToSlack(String);
 void sendSslPOSTnoCertCheck(String, String, String);
