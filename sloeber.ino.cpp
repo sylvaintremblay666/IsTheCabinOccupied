@@ -2,7 +2,7 @@
 //This is a automatic generated file
 //Please do not modify this file
 //If you touch this file your change will be overwritten during the next build
-//This file has been generated on 2018-10-29 15:01:27
+//This file has been generated on 2018-10-30 16:57:49
 
 #include "Arduino.h"
 #include "Arduino.h"
@@ -25,10 +25,12 @@ bool setConfigKeyCallback(WebServer *ws, WiFiClient *client, String queryString,
 bool deleteConfigKeyCallback(WebServer *ws, WiFiClient *client, String queryString, String key) ;
 bool clearConfigFileCallback(WebServer *ws, WiFiClient *client, String queryString, String restArg1) ;
 bool resetWiFiCallback(WebServer *ws, WiFiClient *client, String queryString, String restArg1) ;
-bool isTriggered(void) ;
+bool isDoorSensorTriggered(void) ;
 bool isButtonPressed(void) ;
 void sendSslPOSTnoCertCheck(String host, String url, String msg);
 void sendToSlack(String s) ;
+void setPixelColor(short r, short g, short b) ;
+void loadConfig(void) ;
 void debug(String msg) ;
 
 #include "testWemos.ino"

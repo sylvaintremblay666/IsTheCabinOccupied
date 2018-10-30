@@ -12,30 +12,37 @@
 #define DoorSensorPin D6
 #define NeoPixelPin   D7
 
-#define RED    0, 255,  0
-#define GREEN 255,  0,  0
-#define BLUE   0,  0, 255
-#define ORANGE 165, 255, 0
-
-#define DOOR_LATCH_DELAY_MS 2000
+#define BLACK    0,   0,   0
+#define RED    255,   0,   0
+#define GREEN    0, 255,   0
+#define BLUE     0,   0, 255
+#define ORANGE 255, 165,   0
+#define BROWN  153,  76,   0
 
 // Comment this line to disable serial debug output
 #define __DEBUG__
 
 // We use a NeoPixel (RGB led)
-Adafruit_NeoPixel neoPixel = Adafruit_NeoPixel(1, NeoPixelPin, NEO_RGB + NEO_KHZ800);
+Adafruit_NeoPixel *neoPixel;
 
-// To store the state of the Sensor
-bool sensorLastState;
+// State holders
+bool isDoorClosedLastState = false;
+bool isLedSleeping         = false;
 
+// The WebServer
 WebServer *webServer;
 
-short latch = 0;
+// Internal counters
+unsigned long lastMillisDoorLatch       = millis();
+unsigned long lastMillisWiFiConfigReset = millis();
+unsigned long lastMillisLedSleep        = millis();
 
-unsigned long lastMillisDoorLatch = millis();
+// Config variables
+String slackWebHookToken = ""; // Slack
 
-// Slack
-String slackWebHookToken = "";
+unsigned long doorLatchDelayMS      = 1500;
+unsigned long wifiCfgResetMS        = 10000;
+unsigned long timeBeforeLedSleepMS  = 10000;
 
 //The setup function is called once at startup of the sketch
 void setup()
@@ -45,7 +52,7 @@ void setup()
 
 	// Initialize reed sensor pin and the sensor state
 	pinMode(DoorSensorPin,INPUT);
-	sensorLastState = isTriggered();
+	isDoorClosedLastState = isDoorSensorTriggered();
 
 	// Initialize the onboard led
 	pinMode(OnBoardLED, OUTPUT);
@@ -53,11 +60,8 @@ void setup()
 
 	// Initialize the NeoPixel
 	pinMode(NeoPixelPin, OUTPUT);
-	neoPixel.setBrightness(50);
-	neoPixel.begin();
-	neoPixel.setPixelColor(0, RED);
-	neoPixel.show();
-
+	neoPixel = new Adafruit_NeoPixel(1, NeoPixelPin, NEO_RGB + NEO_KHZ800);
+	setPixelColor(RED);
 
 	// Initialize the button pin
 	pinMode(ButtonPin, INPUT);
@@ -67,22 +71,22 @@ void setup()
 	slackWebHookToken = config->getValue("slack_token");
 	delete config;
 
+	loadConfig();
+
     WiFiManager wifiManager;
 
     if (isButtonPressed()) {
+    	setPixelColor(ORANGE);
     	wifiManager.setLastIP(lastIP);
-    	neoPixel.setPixelColor(0,  ORANGE);
-    	neoPixel.show();
-    	wifiManager.startConfigPortal("SensorConfig");
+    	wifiManager.startConfigPortal("DoorSensorConfig");
     } else {
-    	wifiManager.autoConnect("SensorConfig");
+    	wifiManager.autoConnect("DoorSensorConfig");
     }
 
 	webServer = new WebServer();
 
 	digitalWrite(OnBoardLED, HIGH);
-	neoPixel.setPixelColor(0,  BLUE);
-	neoPixel.show();
+	setPixelColor(BLUE);
 
 	// Print local IP address
 	debug("");
@@ -98,8 +102,7 @@ void setup()
 	sendToSlack("Sensor connected to WiFi SSID: " + WiFi.SSID());
 	sendToSlack("IP address: " + WiFi.localIP().toString());
 
-	neoPixel.setPixelColor(0,  GREEN);
-	neoPixel.show();
+	setPixelColor(GREEN);
 
 	// Register the WebServer endpoints and their callbacks
 	webServer->setDefaultPageTitle("CabinSensor");
@@ -121,16 +124,48 @@ void setup()
 void loop()
 {
 	unsigned long currentMillis = millis();
+	bool isDoorClosed = isDoorSensorTriggered();
 
-	bool sensorState = isTriggered();
-	if (sensorLastState != sensorState) {
-		if (currentMillis - lastMillisDoorLatch > DOOR_LATCH_DELAY_MS) {
+	if (isButtonPressed()) {
+		if (currentMillis - lastMillisWiFiConfigReset > wifiCfgResetMS) {
+			Serial.println("Hard reset of WiFi config!");
+
+			for(short i = 0; i < 10; i++) {
+				setPixelColor(RED);
+				delay(100);
+				setPixelColor(BLUE);
+				delay(100);
+			}
+			setPixelColor(ORANGE);
+			WiFiManager wifiManager;
+			wifiManager.resetSettings();
+			delay(1000);
+			resetFunc();
+		}
+
+		lastMillisLedSleep = currentMillis;
+		isLedSleeping = false;
+		isDoorClosed ? setPixelColor(BROWN) : setPixelColor(GREEN);
+
+	} else {
+		if ((!isLedSleeping) && (currentMillis - lastMillisLedSleep > timeBeforeLedSleepMS)) {
+			isLedSleeping = true;
+			setPixelColor(BLACK);
+		}
+
+		lastMillisWiFiConfigReset = currentMillis;
+	}
+
+	if (isDoorClosedLastState != isDoorClosed) {
+		if (currentMillis - lastMillisDoorLatch > doorLatchDelayMS) {
 			lastMillisDoorLatch = currentMillis;
-			sensorLastState = sensorState;
-			if (sensorState) {
+			isDoorClosedLastState = isDoorClosed;
+			if (isDoorClosed) {
 				sendToSlack("Occupied");
+				if (!isLedSleeping) setPixelColor(BROWN);
 			} else {
 				sendToSlack("Empty");
+				if (!isLedSleeping) setPixelColor(GREEN);
 			}
 		}
 	} else {
@@ -164,7 +199,7 @@ bool rootCallback(WebServer *ws, WiFiClient *client, String queryString, String 
     client->println("</table>");
 
     client->println("<H2>Door sensor status</H2>");
-    if (isTriggered()) {
+    if (isDoorSensorTriggered()) {
     	client->println("Door closed");
     } else {
     	client->println("Door open");
@@ -178,7 +213,7 @@ bool rootCallback(WebServer *ws, WiFiClient *client, String queryString, String 
 bool cabinStatusCallback(WebServer *ws, WiFiClient *client, String queryString, String restArg1) {
     ws->send200();
 
-    if(isTriggered()){
+    if(isDoorSensorTriggered()){
     	client->println("Occupied");
     } else {
     	client->println("Vacant");
@@ -228,6 +263,8 @@ bool setConfigKeyCallback(WebServer *ws, WiFiClient *client, String queryString,
     config.setValue(key, queryString);
     client->println("Success");
 
+    loadConfig();
+
 	return true;
 }
 
@@ -260,7 +297,7 @@ bool resetWiFiCallback(WebServer *ws, WiFiClient *client, String queryString, St
 	return true;
 }
 
-bool isTriggered(void) {
+bool isDoorSensorTriggered(void) {
 	int proxSensor = digitalRead(DoorSensorPin);
 	return proxSensor == LOW;
 }
@@ -328,6 +365,37 @@ void sendToSlack(String s) {
 	} else {
 		String msg = "{\"text\":\"" + s + "\"}";
 		sendSslPOSTnoCertCheck("hooks.slack.com", String("/services/" + slackWebHookToken), msg);
+	}
+}
+
+void setPixelColor(short r, short g, short b) {
+	neoPixel->setBrightness(50);
+	neoPixel->begin();
+	neoPixel->setPixelColor(0, g, r, b);
+	neoPixel->show();
+}
+
+void loadConfig(void) {
+	KeyValueFlash config;
+
+	// door_latch_delay_ms
+	String doorLatchDelayMSString = config.getValue("door_latch_delay_ms");
+	if (!doorLatchDelayMSString.equals("")) {
+		if (doorLatchDelayMSString.toInt() >= 0) {
+			doorLatchDelayMS = doorLatchDelayMSString.toInt();
+		}
+	} else {
+		config.setValue("door_latch_delay_ms", String(doorLatchDelayMS));
+	}
+
+	// time_before_led_sleep_ms
+	String timeBeforeLedSleepMSString = config.getValue("time_before_led_sleep_ms");
+	if (!timeBeforeLedSleepMSString.equals("")) {
+		if (timeBeforeLedSleepMSString.toInt() >= 0) {
+			timeBeforeLedSleepMS = timeBeforeLedSleepMSString.toInt();
+		}
+	} else {
+		config.setValue("time_before_led_sleep_ms", String(timeBeforeLedSleepMS));
 	}
 }
 

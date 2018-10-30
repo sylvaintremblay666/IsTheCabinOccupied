@@ -29,12 +29,16 @@ bool setConfigKeyCallback(WebServer*, WiFiClient*, String, String);
 
 bool resetWiFiCallback(WebServer*, WiFiClient*, String, String);
 
-bool isTriggered(void);
+bool isDoorSensorTriggered(void);
 bool isButtonPressed(void);
 
 void sendToSlack(String);
 void sendSslPOSTnoCertCheck(String, String, String);
 
+void setPixelColor(short r, short g, short b);
 void debug(String);
+void loadConfig(void);
+
+void(* resetFunc) (void) = 0; //declare reset function at address 0
 
 #endif /* TESTWEMOS_H_ */
