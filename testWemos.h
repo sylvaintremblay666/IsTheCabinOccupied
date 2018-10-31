@@ -39,6 +39,7 @@ void setPixelColor(short r, short g, short b);
 void debug(String);
 void loadConfig(void);
 
-void(* resetFunc) (void) = 0; //declare reset function at address 0
+void fadeDownBrown(void);
+void fadeDownGreen(void);
 
 #endif /* TESTWEMOS_H_ */

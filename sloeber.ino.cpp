@@ -2,7 +2,7 @@
 //This is a automatic generated file
 //Please do not modify this file
 //If you touch this file your change will be overwritten during the next build
-//This file has been generated on 2018-10-30 16:57:49
+//This file has been generated on 2018-10-31 16:06:43
 
 #include "Arduino.h"
 #include "Arduino.h"
@@ -31,6 +31,8 @@ void sendSslPOSTnoCertCheck(String host, String url, String msg);
 void sendToSlack(String s) ;
 void setPixelColor(short r, short g, short b) ;
 void loadConfig(void) ;
+void fadeDownBrown(void) ;
+void fadeDownGreen() ;
 void debug(String msg) ;
 
 #include "testWemos.ino"

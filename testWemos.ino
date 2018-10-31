@@ -17,7 +17,7 @@
 #define GREEN    0, 255,   0
 #define BLUE     0,   0, 255
 #define ORANGE 255, 165,   0
-#define BROWN  153,  76,   0
+#define BROWN  163,  76,   0
 
 // Comment this line to disable serial debug output
 #define __DEBUG__
@@ -130,17 +130,17 @@ void loop()
 		if (currentMillis - lastMillisWiFiConfigReset > wifiCfgResetMS) {
 			Serial.println("Hard reset of WiFi config!");
 
-			for(short i = 0; i < 10; i++) {
+			for(short i = 0; i < 20; i++) {
 				setPixelColor(RED);
-				delay(100);
+				delay(50);
 				setPixelColor(BLUE);
-				delay(100);
+				delay(50);
 			}
 			setPixelColor(ORANGE);
 			WiFiManager wifiManager;
 			wifiManager.resetSettings();
 			delay(1000);
-			resetFunc();
+			ESP.restart();
 		}
 
 		lastMillisLedSleep = currentMillis;
@@ -150,7 +150,7 @@ void loop()
 	} else {
 		if ((!isLedSleeping) && (currentMillis - lastMillisLedSleep > timeBeforeLedSleepMS)) {
 			isLedSleeping = true;
-			setPixelColor(BLACK);
+			isDoorClosed ? fadeDownBrown() : fadeDownGreen();
 		}
 
 		lastMillisWiFiConfigReset = currentMillis;
@@ -396,6 +396,21 @@ void loadConfig(void) {
 		}
 	} else {
 		config.setValue("time_before_led_sleep_ms", String(timeBeforeLedSleepMS));
+	}
+}
+
+void fadeDownBrown(void) {
+	for (short r = 163, g=76; r >= 0; r--, g--) {
+		if (g < 0) g = 0;
+		setPixelColor(r, g, 0);
+		delay(12);
+	}
+}
+
+void fadeDownGreen() {
+	for (int g = 255; g >= 0; g--) {
+		setPixelColor(0, g, 0);
+		delay(10);
 	}
 }
 
