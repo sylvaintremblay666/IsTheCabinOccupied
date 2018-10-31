@@ -7,8 +7,8 @@
 #include "WebServer.h"
 #include "KeyValueFlash.h"
 
-#define OnBoardLED D2
-#define ButtonPin  D5
+#define OnBoardLED    D2
+#define ButtonPin     D5
 #define DoorSensorPin D6
 #define NeoPixelPin   D7
 
@@ -18,6 +18,7 @@
 #define BLUE     0,   0, 255
 #define ORANGE 255, 165,   0
 #define BROWN  163,  76,   0
+#define PURPLE 128,   0, 128
 
 // Comment this line to disable serial debug output
 #define __DEBUG__
@@ -37,9 +38,9 @@ unsigned long lastMillisDoorLatch       = millis();
 unsigned long lastMillisWiFiConfigReset = millis();
 unsigned long lastMillisLedSleep        = millis();
 
-// Config variables
-String slackWebHookToken = ""; // Slack
-
+// Config variables - these are default values when not configured (in the board flash)
+String        slackWebHookToken     = "";    // Slack
+String        lastIP                = "";    // The IP address of the board the last time it booted
 unsigned long doorLatchDelayMS      = 1500;
 unsigned long wifiCfgResetMS        = 10000;
 unsigned long timeBeforeLedSleepMS  = 10000;
@@ -54,11 +55,11 @@ void setup()
 	pinMode(DoorSensorPin,INPUT);
 	isDoorClosedLastState = isDoorSensorTriggered();
 
-	// Initialize the onboard led
+	// Initialize the onboard led and turn it on
 	pinMode(OnBoardLED, OUTPUT);
 	digitalWrite(OnBoardLED, LOW);
 
-	// Initialize the NeoPixel
+	// Initialize the NeoPixel. We start with a RED led
 	pinMode(NeoPixelPin, OUTPUT);
 	neoPixel = new Adafruit_NeoPixel(1, NeoPixelPin, NEO_RGB + NEO_KHZ800);
 	setPixelColor(RED);
@@ -66,15 +67,11 @@ void setup()
 	// Initialize the button pin
 	pinMode(ButtonPin, INPUT);
 
-	KeyValueFlash *config = new KeyValueFlash();
-	String lastIP = config->getValue("lastIP");
-	slackWebHookToken = config->getValue("slack_token");
-	delete config;
-
+	// Load the configuration from the flash memory
 	loadConfig();
 
+	// If the button is pressed when booting, start in AP mode to give the last IP
     WiFiManager wifiManager;
-
     if (isButtonPressed()) {
     	setPixelColor(ORANGE);
     	wifiManager.setLastIP(lastIP);
@@ -83,8 +80,7 @@ void setup()
     	wifiManager.autoConnect("DoorSensorConfig");
     }
 
-	webServer = new WebServer();
-
+    // We're now connected to wifi, turn the led BLUE and the onboard led off
 	digitalWrite(OnBoardLED, HIGH);
 	setPixelColor(BLUE);
 
@@ -94,17 +90,15 @@ void setup()
 	debug("IP address: " + WiFi.localIP().toString());
 
 	// Save IP address to flash memory
-	config = new KeyValueFlash();
-	config->setValue("lastIP", WiFi.localIP().toString());
-	delete config;
+	KeyValueFlash config;
+	config.setValue("lastIP", WiFi.localIP().toString());
 
 	// Send WiFi infos to slack
 	sendToSlack("Sensor connected to WiFi SSID: " + WiFi.SSID());
 	sendToSlack("IP address: " + WiFi.localIP().toString());
 
-	setPixelColor(GREEN);
-
-	// Register the WebServer endpoints and their callbacks
+	// Create the WebServer and register its EndPoints
+	webServer = new WebServer();
 	webServer->setDefaultPageTitle("CabinSensor");
 	webServer->registerEndpoint("GET /", "root page", rootCallback);
 	webServer->registerEndpoint("GET /cabinStatus", "Get the status of the cabin (Occupied/Vacant)", cabinStatusCallback);
@@ -118,17 +112,21 @@ void setup()
 
 
 	webServer->registerEndpoint("GET /wifi/reset", "Reset the WiFi configuration", resetWiFiCallback);
+
+	// Setup completed, turn the led GREEN
+	setPixelColor(GREEN);
 }
 
-// The loop function is called in an endless loop
+// Ze Loop !
 void loop()
 {
 	unsigned long currentMillis = millis();
 	bool isDoorClosed = isDoorSensorTriggered();
 
+	// If the button is pressed for more than wifiCfgResetMS milisecs, we reset the WiFi settings
 	if (isButtonPressed()) {
 		if (currentMillis - lastMillisWiFiConfigReset > wifiCfgResetMS) {
-			Serial.println("Hard reset of WiFi config!");
+			debug("Hard reset of WiFi config!");
 
 			for(short i = 0; i < 20; i++) {
 				setPixelColor(RED);
@@ -136,7 +134,7 @@ void loop()
 				setPixelColor(BLUE);
 				delay(50);
 			}
-			setPixelColor(ORANGE);
+			setPixelColor(PURPLE);
 			WiFiManager wifiManager;
 			wifiManager.resetSettings();
 			delay(1000);
@@ -397,6 +395,22 @@ void loadConfig(void) {
 	} else {
 		config.setValue("time_before_led_sleep_ms", String(timeBeforeLedSleepMS));
 	}
+
+	// wifi_cfg_reset_ms
+	String wifiCfgResetMSString = config.getValue("wifi_cfg_reset_ms");
+	if (!wifiCfgResetMSString.equals("")) {
+		if (wifiCfgResetMSString.toInt() >= 0) {
+			wifiCfgResetMS = wifiCfgResetMSString.toInt();
+		}
+	} else {
+		config.setValue("wifi_cfg_reset_ms", String(wifiCfgResetMS));
+	}
+
+    // lastIP
+	String lastIPString = config.getValue("lastIP");
+
+	// Slack webhook token
+	slackWebHookToken = config.getValue("slack_token");
 }
 
 void fadeDownBrown(void) {
