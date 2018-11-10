@@ -2,7 +2,7 @@
 //This is a automatic generated file
 //Please do not modify this file
 //If you touch this file your change will be overwritten during the next build
-//This file has been generated on 2018-10-31 16:38:54
+//This file has been generated on 2018-11-10 07:05:36
 
 #include "Arduino.h"
 #include "Arduino.h"
@@ -33,6 +33,7 @@ void setPixelColor(short r, short g, short b) ;
 void loadConfig(void) ;
 void fadeDownBrown(void) ;
 void fadeDownGreen() ;
+float getBatteryVoltage() ;
 void debug(String msg) ;
 
 #include "testWemos.ino"

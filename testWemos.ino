@@ -7,10 +7,20 @@
 #include "WebServer.h"
 #include "KeyValueFlash.h"
 
-#define OnBoardLED    D2
+#define OnBoardLED    DO_NOT_USE_SAME_PIN_AS_WAKE // D2
+
+
+/*
 #define ButtonPin     D5
 #define DoorSensorPin D6
 #define NeoPixelPin   D7
+*/
+
+
+#define ButtonPin     D7
+#define DoorSensorPin D5
+#define NeoPixelPin   D6
+
 
 #define BLACK    0,   0,   0
 #define RED    255,   0,   0
@@ -37,13 +47,14 @@ WebServer *webServer;
 unsigned long lastMillisDoorLatch       = millis();
 unsigned long lastMillisWiFiConfigReset = millis();
 unsigned long lastMillisLedSleep        = millis();
+unsigned long lastMillisVoltageOutput   = millis();
 
 // Config variables - these are default values when not configured (in the board flash)
 String        slackWebHookToken     = "";    // Slack
 String        lastIP                = "";    // The IP address of the board the last time it booted
 unsigned long doorLatchDelayMS      = 1500;
 unsigned long wifiCfgResetMS        = 10000;
-unsigned long timeBeforeLedSleepMS  = 10000;
+unsigned long timeBeforeLedSleepMS  = 120000;
 
 //The setup function is called once at startup of the sketch
 void setup()
@@ -55,17 +66,17 @@ void setup()
 	pinMode(DoorSensorPin,INPUT);
 	isDoorClosedLastState = isDoorSensorTriggered();
 
-	// Initialize the onboard led and turn it on
-	pinMode(OnBoardLED, OUTPUT);
-	digitalWrite(OnBoardLED, LOW);
-
 	// Initialize the NeoPixel. We start with a RED led
 	pinMode(NeoPixelPin, OUTPUT);
 	neoPixel = new Adafruit_NeoPixel(1, NeoPixelPin, NEO_RGB + NEO_KHZ800);
+	neoPixel->setBrightness(100);
 	setPixelColor(RED);
 
 	// Initialize the button pin
 	pinMode(ButtonPin, INPUT);
+
+	// Initialize the Analog pin to read battery voltage from
+	pinMode(A0, INPUT);
 
 	// Load the configuration from the flash memory
 	loadConfig();
@@ -80,8 +91,7 @@ void setup()
     	wifiManager.autoConnect("DoorSensorConfig");
     }
 
-    // We're now connected to wifi, turn the led BLUE and the onboard led off
-	digitalWrite(OnBoardLED, HIGH);
+    // We're now connected to wifi, turn the led BLUE
 	setPixelColor(BLUE);
 
 	// Print local IP address
@@ -172,6 +182,13 @@ void loop()
 
 	webServer->checkForClientAndProcessRequest();
 
+
+	if (currentMillis - lastMillisVoltageOutput > 10000) {
+		Serial.println(getBatteryVoltage());
+		sendToSlack(String(getBatteryVoltage()));
+		lastMillisVoltageOutput = currentMillis;
+	}
+
 }
 
 bool rootCallback(WebServer *ws, WiFiClient *client, String queryString, String restArg1) {
@@ -202,6 +219,11 @@ bool rootCallback(WebServer *ws, WiFiClient *client, String queryString, String 
     } else {
     	client->println("Door open");
     }
+
+    client->println("<H2>Battery Voltage</H2>");
+    client->println(getBatteryVoltage());
+    client->println(" volts");
+
 
     ws->sendWebPageFootAndCloseBody();
 
@@ -302,6 +324,7 @@ bool isDoorSensorTriggered(void) {
 
 bool isButtonPressed(void) {
 	return (digitalRead(ButtonPin) == HIGH);
+
 }
 
 void sendSslPOSTnoCertCheck(String host, String url, String msg){
@@ -367,7 +390,6 @@ void sendToSlack(String s) {
 }
 
 void setPixelColor(short r, short g, short b) {
-	neoPixel->setBrightness(50);
 	neoPixel->begin();
 	neoPixel->setPixelColor(0, g, r, b);
 	neoPixel->show();
@@ -426,6 +448,14 @@ void fadeDownGreen() {
 		setPixelColor(0, g, 0);
 		delay(10);
 	}
+}
+
+float getBatteryVoltage() {
+	int raw = analogRead(A0);
+	float volt=raw/1023.0;
+	volt=volt*4.2;
+
+	return volt;
 }
 
 void debug(String msg) {

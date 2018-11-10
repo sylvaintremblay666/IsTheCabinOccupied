@@ -32,6 +32,8 @@ bool resetWiFiCallback(WebServer*, WiFiClient*, String, String);
 bool isDoorSensorTriggered(void);
 bool isButtonPressed(void);
 
+float getBatteryVoltage(void);
+
 void sendToSlack(String);
 void sendSslPOSTnoCertCheck(String, String, String);
 
