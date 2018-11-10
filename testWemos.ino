@@ -3,7 +3,7 @@
 #include "ESP8266HTTPClient.h"
 #include "Adafruit_NeoPixel.h"
 #include "testWemos.h"
-#include "WiFiManager.h"
+#include "libraries/WiFiManagerModified/WiFiManager.h"
 #include "WebServer.h"
 #include "KeyValueFlash.h"
 

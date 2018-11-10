@@ -25,7 +25,6 @@
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/testWemos/libraries/ESP8266WiFi/src}&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/testWemos/libraries/ESP8266HTTPClient/src}&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/testWemos/libraries/DNSServer/src}&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/testWemos/libraries/WiFiManager}&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/testWemos/libraries/Adafruit_NeoPixel}&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/testWemos/libraries/ESP8266WebServer/src}&quot;"/>
 								</option>
@@ -39,7 +38,6 @@
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/testWemos/libraries/ESP8266WiFi/src}&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/testWemos/libraries/ESP8266HTTPClient/src}&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/testWemos/libraries/DNSServer/src}&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/testWemos/libraries/WiFiManager}&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/testWemos/libraries/Adafruit_NeoPixel}&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/testWemos/libraries/ESP8266WebServer/src}&quot;"/>
 								</option>
@@ -53,7 +51,6 @@
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/testWemos/libraries/ESP8266WiFi/src}&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/testWemos/libraries/ESP8266HTTPClient/src}&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/testWemos/libraries/DNSServer/src}&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/testWemos/libraries/WiFiManager}&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/testWemos/libraries/Adafruit_NeoPixel}&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/testWemos/libraries/ESP8266WebServer/src}&quot;"/>
 								</option>

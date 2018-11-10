@@ -6,7 +6,6 @@
  */
 
 #include "WebServer.h"
-#include "WiFiManager.h"
 
 // Comment this line to disable serial debug output
 #define __WEBSERVER_DEBUG__
