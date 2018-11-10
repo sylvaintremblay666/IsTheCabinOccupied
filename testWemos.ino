@@ -37,7 +37,6 @@
 Adafruit_NeoPixel *neoPixel;
 
 // State holders
-bool isDoorClosedLastState = false;
 bool isLedSleeping         = false;
 
 // The WebServer
@@ -55,6 +54,10 @@ String        lastIP                = "";    // The IP address of the board the 
 unsigned long doorLatchDelayMS      = 1500;
 unsigned long wifiCfgResetMS        = 10000;
 unsigned long timeBeforeLedSleepMS  = 120000;
+unsigned int  sleepTimeS            = 5;
+
+bool          isInSleepMode          = false;
+bool          isDoorClosedLastState  = false;
 
 //The setup function is called once at startup of the sketch
 void setup()
@@ -62,9 +65,61 @@ void setup()
     // Initialize serial console output
 	Serial.begin(115200);
 
-	// Initialize reed sensor pin and the sensor state
+	// Initialize reed sensor and button pins
 	pinMode(DoorSensorPin,INPUT);
-	isDoorClosedLastState = isDoorSensorTriggered();
+	pinMode(ButtonPin, INPUT);
+
+	// Load the configuration from the flash memory
+	loadConfig();
+
+	// If we are in sleep mode, everything executes there once in the setup fct
+	// then we'll go back to deepSleep. If we're not in sleep mode, we initialize
+	// then go in the loop
+	if (isInSleepMode) {
+		// If the button is pressed, flag to get out of sleep mode and reset
+		if (isButtonPressed()) {
+		  KeyValueFlash config;
+		  config.setValue("is_in_sleep_mode", "false");
+		  delay(1000);
+		  ESP.restart();
+		}
+
+		// If the state of the door has changed or if we are low battery
+		bool isDoorClosedNow = isDoorClosed();
+		bool doorChangedState = isDoorClosedNow != isDoorClosedLastState;
+		bool sendAlert = shouldSendLowBatAlert();
+		if (doorChangedState || sendAlert){
+			// Connect to WiFi
+		    WiFiManager wifiManager;
+		    wifiManager.autoConnect("DoorSensorConfig");
+
+			// Print local IP address
+			debug("");
+			debug("WiFi connected.");
+			debug("IP address: " + WiFi.localIP().toString());
+
+
+			if (doorChangedState) {
+				sendToSlack(isDoorClosedNow ? "Occupied" : "Free");
+
+				KeyValueFlash config;
+				config.setValue("door_status_b4_sleep", isDoorClosedNow ? "closed" : "opened");
+			}
+
+			if (sendAlert) {
+				sendLowBatAlert();
+			}
+		}
+
+		// go back to sleep
+		ESP.deepSleep(sleepTimeS * 1000000);
+
+	} else {
+
+	}
+
+
+	isDoorClosedLastState = isDoorClosed();
 
 	// Initialize the NeoPixel. We start with a RED led
 	pinMode(NeoPixelPin, OUTPUT);
@@ -72,14 +127,10 @@ void setup()
 	neoPixel->setBrightness(100);
 	setPixelColor(RED);
 
-	// Initialize the button pin
-	pinMode(ButtonPin, INPUT);
-
 	// Initialize the Analog pin to read battery voltage from
 	pinMode(A0, INPUT);
 
-	// Load the configuration from the flash memory
-	loadConfig();
+
 
 	// If the button is pressed when booting, start in AP mode to give the last IP
     WiFiManager wifiManager;
@@ -131,7 +182,7 @@ void setup()
 void loop()
 {
 	unsigned long currentMillis = millis();
-	bool isDoorClosed = isDoorSensorTriggered();
+	bool isDoorClosedNow = isDoorClosed();
 
 	// If the button is pressed for more than wifiCfgResetMS milisecs, we reset the WiFi settings
 	if (isButtonPressed()) {
@@ -153,22 +204,27 @@ void loop()
 
 		lastMillisLedSleep = currentMillis;
 		isLedSleeping = false;
-		isDoorClosed ? setPixelColor(BROWN) : setPixelColor(GREEN);
+		isDoorClosedNow ? setPixelColor(BROWN) : setPixelColor(GREEN);
 
 	} else {
 		if ((!isLedSleeping) && (currentMillis - lastMillisLedSleep > timeBeforeLedSleepMS)) {
 			isLedSleeping = true;
-			isDoorClosed ? fadeDownBrown() : fadeDownGreen();
+			isDoorClosedNow ? fadeDownBrown() : fadeDownGreen();
+
+			// Put in sleep mode
+			KeyValueFlash config;
+			config.setValue("is_in_sleep_mode", "true");
+			ESP.reset();
 		}
 
 		lastMillisWiFiConfigReset = currentMillis;
 	}
 
-	if (isDoorClosedLastState != isDoorClosed) {
+	if (isDoorClosedLastState != isDoorClosedNow) {
 		if (currentMillis - lastMillisDoorLatch > doorLatchDelayMS) {
 			lastMillisDoorLatch = currentMillis;
-			isDoorClosedLastState = isDoorClosed;
-			if (isDoorClosed) {
+			isDoorClosedLastState = isDoorClosedNow;
+			if (isDoorClosedNow) {
 				sendToSlack("Occupied");
 				if (!isLedSleeping) setPixelColor(BROWN);
 			} else {
@@ -182,13 +238,13 @@ void loop()
 
 	webServer->checkForClientAndProcessRequest();
 
-
+/*
 	if (currentMillis - lastMillisVoltageOutput > 10000) {
 		Serial.println(getBatteryVoltage());
 		sendToSlack(String(getBatteryVoltage()));
 		lastMillisVoltageOutput = currentMillis;
 	}
-
+*/
 }
 
 bool rootCallback(WebServer *ws, WiFiClient *client, String queryString, String restArg1) {
@@ -214,7 +270,7 @@ bool rootCallback(WebServer *ws, WiFiClient *client, String queryString, String 
     client->println("</table>");
 
     client->println("<H2>Door sensor status</H2>");
-    if (isDoorSensorTriggered()) {
+    if (isDoorClosed()) {
     	client->println("Door closed");
     } else {
     	client->println("Door open");
@@ -233,7 +289,7 @@ bool rootCallback(WebServer *ws, WiFiClient *client, String queryString, String 
 bool cabinStatusCallback(WebServer *ws, WiFiClient *client, String queryString, String restArg1) {
     ws->send200();
 
-    if(isDoorSensorTriggered()){
+    if(isDoorClosed()){
     	client->println("Occupied");
     } else {
     	client->println("Vacant");
@@ -317,7 +373,7 @@ bool resetWiFiCallback(WebServer *ws, WiFiClient *client, String queryString, St
 	return true;
 }
 
-bool isDoorSensorTriggered(void) {
+bool isDoorClosed(void) {
 	int proxSensor = digitalRead(DoorSensorPin);
 	return proxSensor == LOW;
 }
@@ -428,11 +484,29 @@ void loadConfig(void) {
 		config.setValue("wifi_cfg_reset_ms", String(wifiCfgResetMS));
 	}
 
+	// sleep_time_s
+	String sleepTimeSString = config.getValue("sleep_time_s");
+	if (!sleepTimeSString.equals("")) {
+		if (sleepTimeSString.toInt() >= 0) {
+			sleepTimeS = sleepTimeSString.toInt();
+		}
+	} else {
+		config.setValue("sleep_time_s", String(sleepTimeS));
+	}
+
+	unsigned int  sleepTimeS          = 5;
+
     // lastIP
 	String lastIPString = config.getValue("lastIP");
 
 	// Slack webhook token
 	slackWebHookToken = config.getValue("slack_token");
+
+	// isInSleepMode
+	isInSleepMode = config.getValue("is_in_sleep_mode").equals("true");
+
+	// was the door closed when we went to sleep
+	isDoorClosedLastState = config.getValue("door_status_b4_sleep").equals("closed");
 }
 
 void fadeDownBrown(void) {
@@ -456,6 +530,14 @@ float getBatteryVoltage() {
 	volt=volt*4.2;
 
 	return volt;
+}
+
+bool shouldSendLowBatAlert(void) {
+	return getBatteryVoltage() <= 3.9;
+}
+
+void sendLowBatAlert() {
+	sendToSlack("LOW BATTERY !!!");
 }
 
 void debug(String msg) {

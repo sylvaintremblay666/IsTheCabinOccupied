@@ -29,7 +29,7 @@ bool setConfigKeyCallback(WebServer*, WiFiClient*, String, String);
 
 bool resetWiFiCallback(WebServer*, WiFiClient*, String, String);
 
-bool isDoorSensorTriggered(void);
+bool isDoorClosed(void);
 bool isButtonPressed(void);
 
 float getBatteryVoltage(void);
@@ -43,5 +43,8 @@ void loadConfig(void);
 
 void fadeDownBrown(void);
 void fadeDownGreen(void);
+
+bool shouldSendLowBatAlert(void);
+void sendLowBatAlert(void);
 
 #endif /* TESTWEMOS_H_ */
