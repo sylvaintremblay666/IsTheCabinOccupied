@@ -2,7 +2,7 @@
 //This is a automatic generated file
 //Please do not modify this file
 //If you touch this file your change will be overwritten during the next build
-//This file has been generated on 2018-11-10 10:57:11
+//This file has been generated on 2018-11-14 16:36:28
 
 #include "Arduino.h"
 #include "Arduino.h"
@@ -13,6 +13,7 @@
 #include "libraries/WiFiManagerModified/WiFiManager.h"
 #include "WebServer.h"
 #include "KeyValueFlash.h"
+#include "FS.h"
 
 void setup() ;
 void loop() ;
@@ -31,6 +32,7 @@ void sendSslPOSTnoCertCheck(String host, String url, String msg);
 void sendToSlack(String s) ;
 void setPixelColor(short r, short g, short b) ;
 void loadConfig(void) ;
+bool isInSleepMode(void) ;
 void fadeDownBrown(void) ;
 void fadeDownGreen() ;
 float getBatteryVoltage() ;

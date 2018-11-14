@@ -1,7 +1,7 @@
 /*
  * KeyValueFlash.h
  *
- *  Created on: Oct 27, 2018
+ *  Created on: Nov 12, 2018
  *      Author: stremblay
  */
 
@@ -11,38 +11,33 @@
 #include "Arduino.h"
 #include "FS.h"
 
+#define INITIAL_ELEMENTS_ARRAY_SIZE 10
+#define MAX_KEY_SIZE 32
+
 class KeyValueFlash {
 public:
-	typedef struct {
-		String k;
-		String v;
-	} Pair;
-
 	KeyValueFlash();
-	KeyValueFlash(String);
+	KeyValueFlash(String configName);
 	virtual ~KeyValueFlash();
 
-	String getValue(String);
-	void setValue(String, String);
-	void deleteKey(String);
+	typedef struct {
+	    char k[MAX_KEY_SIZE];
+	    char v[64];
+	} Pair;
 
-	short getNbElements(void);
-	Pair* getConfig(void);
-
-	String getRawContent();
-	void writeRawContent(String);
-
-	void clearConfigFile(void);
+	void   set(String key, String value);
+	String get(String key);
+	void   remove(String key);
 
 private:
-	String configFileName = "default";
-	String configFileContent = ";";
+	String configFolder    = "/default";
 
-	Pair *configElements = 0;
-	short nbElements = 0;
+	Pair   *elements         = NULL;
+	short  nbElements        = 0;
+	short  elementsArraySize = INITIAL_ELEMENTS_ARRAY_SIZE;
 
-	void readConfigFile(void);
-	void parseConfigFile(void);
+	void   upsizeElementsArray(short nbNewSlots);
+
 };
 
 #endif /* KEYVALUEFLASH_H_ */

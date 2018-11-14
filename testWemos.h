@@ -10,6 +10,15 @@
 #ifndef TESTWEMOS_H_
 #define TESTWEMOS_H_
 
+
+#define BLACK    0,   0,   0
+#define RED    255,   0,   0
+#define GREEN    0, 255,   0
+#define BLUE     0,   0, 255
+#define ORANGE 255, 165,   0
+#define BROWN  163,  76,   0
+#define PURPLE 128,   0, 128
+
 void send200(WiFiClient*);
 void sendWebPage(WiFiClient*);
 void sendWebPageHead(WiFiClient*);
@@ -31,6 +40,8 @@ bool resetWiFiCallback(WebServer*, WiFiClient*, String, String);
 
 bool isDoorClosed(void);
 bool isButtonPressed(void);
+
+bool isInSleepMode(void);
 
 float getBatteryVoltage(void);
 

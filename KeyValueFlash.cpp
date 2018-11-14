@@ -1,185 +1,62 @@
 /*
  * KeyValueFlash.cpp
  *
- *  Created on: Oct 27, 2018
+ *  Created on: Nov 12, 2018
  *      Author: stremblay
  */
+
 #include "KeyValueFlash.h"
 
-KeyValueFlash::KeyValueFlash() {
-	Serial.println("KeyValueFlash: initializing and reading config file");
-	SPIFFS.begin();
+KeyValueFlash::KeyValueFlash(String configName) {
+	this->configFolder = "/" + configName;
 
-	readConfigFile();
+	KeyValueFlash();
 }
 
-KeyValueFlash::KeyValueFlash(String configName) {
-	configFileName = configName;
-	KeyValueFlash();
+KeyValueFlash::KeyValueFlash() {
+	SPIFFS.begin();
+
+	elements = new Pair[elementsArraySize];
 }
 
 KeyValueFlash::~KeyValueFlash() {
 }
 
-String KeyValueFlash::getRawContent() {
-	Serial.println("KeyValueFlash: Reading from config");
-	readConfigFile();
-	return configFileContent;
-}
+void KeyValueFlash::set(String key, String value) {
 
-void KeyValueFlash::writeRawContent(String rawContent) {
-	Serial.println("KeyValueFlash: Writing to config");
-	File configFile = SPIFFS.open(configFileName, "w+");
-	if (!configFile) {
-	    Serial.println("KeyValueFlash: file open failed (when writing)");
-	    return;
+	String valueFileName = configFolder + "/" + key;
+
+	Serial.print("KeyValueFlash [save] : "); Serial.print(valueFileName); Serial.println(" (" + value + ")");
+
+	File f = SPIFFS.open(valueFileName, "w");
+	if (!f) {
+		// Error opening file!
+		Serial.print("KeyValueFlash [save] : error opening file: "); Serial.println(valueFileName);
 	}
-
-	configFile.print(rawContent + ';');
-	configFile.close();
+	f.print(value);
+	f.close();
 }
 
-String KeyValueFlash::getValue(String key) {
-	String rawConfig = configFileContent;
-
-	Serial.println("KeyValueFlash: Searching for key: \"" + key + "\"");
-
-	while(rawConfig != "") {
-		String nextKey = rawConfig.substring(0, rawConfig.indexOf('='));
-		String nextVal = rawConfig.substring(rawConfig.indexOf('=') + 1, rawConfig.indexOf(','));
-
-		if(nextKey.equals(key)) {
-			Serial.println("Found! Value: " + nextVal);
-			return nextVal;
+String KeyValueFlash::get(String key) {
+	String valueFileName = configFolder + "/" + key;
+	Serial.print("KeyValueFlash [load] : Getting: " + valueFileName);
+	if (SPIFFS.exists(valueFileName)){
+		File valueFile = SPIFFS.open(valueFileName, "r");
+		if (!valueFile) {
+			Serial.println("KeyValueFlash [load] : error reading key file: " + valueFileName);
+			return "";
 		}
-
-		rawConfig = rawConfig.substring(rawConfig.indexOf(',') + 1, rawConfig.length());
+		String value = valueFile.readString();
+		valueFile.close();
+		Serial.println("  -> " + value);
+		return value;
 	}
-	Serial.println("Not found.");
 
 	return "";
 }
 
-void KeyValueFlash::setValue(String key, String val) {
-	File configFile = SPIFFS.open(configFileName, "w+");
-
-    String rawConfig = configFileContent;
-
-    Serial.println(String("Saving key / val: " + key + " / " + val));
-	while(rawConfig != "") {
-		String nextKey = rawConfig.substring(0, rawConfig.indexOf('='));
-		String nextVal = rawConfig.substring(rawConfig.indexOf('=') + 1, rawConfig.indexOf(','));
-
-		if(!nextKey.equals(key)) {
-			configFile.print(nextKey + "=" + nextVal + ",");
-		}
-
-		rawConfig = rawConfig.substring(rawConfig.indexOf(',') + 1, rawConfig.length());
-	}
-
-	configFile.println(key + "=" + val + ",;");
-
-	configFile.close();
-	readConfigFile();
-}
-
-void KeyValueFlash::deleteKey(String key) {
-	File configFile = SPIFFS.open(configFileName, "w+");
-
-    String rawConfig = configFileContent;
-
-    Serial.println(String("Deleting key: " + key));
-	while(rawConfig != "") {
-		String nextKey = rawConfig.substring(0, rawConfig.indexOf('='));
-		String nextVal = rawConfig.substring(rawConfig.indexOf('=') + 1, rawConfig.indexOf(','));
-
-		if(!nextKey.equals(key)) {
-			configFile.print(nextKey + "=" + nextVal + ",");
-		}
-
-		rawConfig = rawConfig.substring(rawConfig.indexOf(',') + 1, rawConfig.length());
-	}
-
-	configFile.println(";");
-
-	configFile.close();
-	readConfigFile();
-}
-
-void KeyValueFlash::readConfigFile() {
-	File configFile = SPIFFS.open(configFileName, "r+");
-	if (!configFile) {
-	    Serial.println("KeyValueFlash: file open failed (when trying to read)");
-	    configFileContent = ";";
-	    return;
-	}
-
-	configFileContent = configFile.readStringUntil(';');
-    Serial.println("Content:");
-    Serial.println(configFileContent);
-
-	configFile.close();
-	parseConfigFile();
-}
-
-void KeyValueFlash::parseConfigFile() {
-	Serial.println("Parsing config file");
-
-	// Scan to find the number of elements
-	nbElements = 0;
-	String configStr = configFileContent;
-	short commaPos = configStr.indexOf(',');
-
-	while (commaPos >= 0) {
-		String elem = configStr.substring(0, commaPos);
-		short equalPos = elem.indexOf('=');
-		if (equalPos >= 0) {
-			nbElements++;
-			Serial.println("Found element: " + elem);
-		}
-
-		configStr = configStr.substring(commaPos + 1);
-		commaPos = configStr.indexOf(',');
-	}
-	Serial.println("Number of key/value pairs found: " + String(nbElements));
-
-	// Create the elements array and save the elements in there
-	if (configElements != 0) { delete[] configElements; }
-	configElements = new Pair[nbElements];
-
-	configStr = configFileContent;
-	commaPos = configStr.indexOf(',');
-	short i = 0;
-	while (commaPos >= 0) {
-		String elem = configStr.substring(0, commaPos);
-		short equalPos = elem.indexOf('=');
-		if (equalPos >= 0) {
-			configElements[i].k = elem.substring(0, equalPos);
-			configElements[i].v = elem.substring(equalPos + 1);
-			i++;
-		}
-
-		configStr = configStr.substring(commaPos + 1);
-		commaPos = configStr.indexOf(',');
-	}
-}
-
-KeyValueFlash::Pair* KeyValueFlash::getConfig(void) {
-	return configElements;
-}
-
-short KeyValueFlash::getNbElements(void) {
-	return nbElements;
-}
-
-void KeyValueFlash::clearConfigFile() {
-	Serial.println("remove rc:" + SPIFFS.remove(configFileName));
-	File configFile = SPIFFS.open(configFileName, "w+");
-	if (!configFile) {
-		Serial.println("KeyValueFlash: file open failed (when initializing)");
-		return;
-	}
-
-	configFile.println(";");
-	configFile.close();
+void KeyValueFlash::remove(String key) {
+	String valueFileName = configFolder + "/" + key;
+	Serial.println("KeyValueFlash: Removing key: " + key);
+	SPIFFS.remove(valueFileName);
 }

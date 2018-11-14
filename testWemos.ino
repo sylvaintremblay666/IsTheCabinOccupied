@@ -6,6 +6,7 @@
 #include "libraries/WiFiManagerModified/WiFiManager.h"
 #include "WebServer.h"
 #include "KeyValueFlash.h"
+#include "FS.h"
 
 #define OnBoardLED    DO_NOT_USE_SAME_PIN_AS_WAKE // D2
 
@@ -21,26 +22,17 @@
 #define DoorSensorPin D5
 #define NeoPixelPin   D6
 
-
-#define BLACK    0,   0,   0
-#define RED    255,   0,   0
-#define GREEN    0, 255,   0
-#define BLUE     0,   0, 255
-#define ORANGE 255, 165,   0
-#define BROWN  163,  76,   0
-#define PURPLE 128,   0, 128
-
 // Comment this line to disable serial debug output
 #define __DEBUG__
 
 // We use a NeoPixel (RGB led)
 Adafruit_NeoPixel *neoPixel;
 
-// State holders
-bool isLedSleeping         = false;
-
 // The WebServer
 WebServer *webServer;
+
+// The config
+KeyValueFlash config;
 
 // Internal counters
 unsigned long lastMillisDoorLatch       = millis();
@@ -54,9 +46,8 @@ String        lastIP                = "";    // The IP address of the board the 
 unsigned long doorLatchDelayMS      = 1500;
 unsigned long wifiCfgResetMS        = 10000;
 unsigned long timeBeforeLedSleepMS  = 120000;
-unsigned int  sleepTimeS            = 5;
+unsigned int  sleepTimeS            = 3;
 
-bool          isInSleepMode          = false;
 bool          isDoorClosedLastState  = false;
 
 //The setup function is called once at startup of the sketch
@@ -65,22 +56,31 @@ void setup()
     // Initialize serial console output
 	Serial.begin(115200);
 
+	Serial.println("Starting setup!");
+
 	// Initialize reed sensor and button pins
 	pinMode(DoorSensorPin,INPUT);
 	pinMode(ButtonPin, INPUT);
 
-	// Load the configuration from the flash memory
-	loadConfig();
-
 	// If we are in sleep mode, everything executes there once in the setup fct
 	// then we'll go back to deepSleep. If we're not in sleep mode, we initialize
 	// then go in the loop
-	if (isInSleepMode) {
+	if (isInSleepMode()) {
+		Serial.println("Entering sleep mode code path");
 		// If the button is pressed, flag to get out of sleep mode and reset
 		if (isButtonPressed()) {
-		  KeyValueFlash config;
-		  config.setValue("is_in_sleep_mode", "false");
+		  config.set("is_in_sleep_mode", "false");
+		  config.remove("sleep_mode");
 		  delay(1000);
+
+
+		  // Use the light to indicate the command has been understood
+		  pinMode(NeoPixelPin, OUTPUT);
+		  neoPixel = new Adafruit_NeoPixel(1, NeoPixelPin, NEO_RGB + NEO_KHZ800);
+		  neoPixel->begin();
+		  neoPixel->setBrightness(50);
+		  fadeDownGreen();
+
 		  ESP.restart();
 		}
 
@@ -98,12 +98,22 @@ void setup()
 			debug("WiFi connected.");
 			debug("IP address: " + WiFi.localIP().toString());
 
+			slackWebHookToken = config.get("slack_token");
 
 			if (doorChangedState) {
 				sendToSlack(isDoorClosedNow ? "Occupied" : "Free");
+				sendToSlack(String(getBatteryVoltage()));
 
-				KeyValueFlash config;
-				config.setValue("door_status_b4_sleep", isDoorClosedNow ? "closed" : "opened");
+				config.set("door_status_b4_sleep", isDoorClosedNow ? "closed" : "opened");
+
+				String sleepModeString = String(sleepTimeS);
+				sleepModeString += String(":");
+				sleepModeString += isDoorClosedNow ? String("closed") : String("opened");
+				Serial.println("Entering sleep mode: " + sleepModeString);
+				config.set("sleep_mode", sleepModeString);
+
+
+				delay(2000);
 			}
 
 			if (sendAlert) {
@@ -114,23 +124,27 @@ void setup()
 		// go back to sleep
 		ESP.deepSleep(sleepTimeS * 1000000);
 
-	} else {
-
 	}
 
+	// We're not in sleep mode, initialize and loooop !
 
 	isDoorClosedLastState = isDoorClosed();
 
 	// Initialize the NeoPixel. We start with a RED led
 	pinMode(NeoPixelPin, OUTPUT);
 	neoPixel = new Adafruit_NeoPixel(1, NeoPixelPin, NEO_RGB + NEO_KHZ800);
-	neoPixel->setBrightness(100);
+	neoPixel->begin();
+	neoPixel->setBrightness(50);
 	setPixelColor(RED);
+
+	// Load the configuration from the flash memory
+	loadConfig();
 
 	// Initialize the Analog pin to read battery voltage from
 	pinMode(A0, INPUT);
 
-
+	// Config is loaded, turn the led BLUE
+	setPixelColor(BLUE);
 
 	// If the button is pressed when booting, start in AP mode to give the last IP
     WiFiManager wifiManager;
@@ -142,17 +156,13 @@ void setup()
     	wifiManager.autoConnect("DoorSensorConfig");
     }
 
-    // We're now connected to wifi, turn the led BLUE
-	setPixelColor(BLUE);
-
 	// Print local IP address
 	debug("");
 	debug("WiFi connected.");
 	debug("IP address: " + WiFi.localIP().toString());
 
 	// Save IP address to flash memory
-	KeyValueFlash config;
-	config.setValue("lastIP", WiFi.localIP().toString());
+	config.set("lastIP", WiFi.localIP().toString());
 
 	// Send WiFi infos to slack
 	sendToSlack("Sensor connected to WiFi SSID: " + WiFi.SSID());
@@ -184,8 +194,8 @@ void loop()
 	unsigned long currentMillis = millis();
 	bool isDoorClosedNow = isDoorClosed();
 
-	// If the button is pressed for more than wifiCfgResetMS milisecs, we reset the WiFi settings
-	if (isButtonPressed()) {
+	// If the button is pressed for more than wifiCfgResetMS millisecs, we reset the WiFi settings
+	if (isButtonPressed() && millis() > 5000) {
 		if (currentMillis - lastMillisWiFiConfigReset > wifiCfgResetMS) {
 			debug("Hard reset of WiFi config!");
 
@@ -198,23 +208,28 @@ void loop()
 			setPixelColor(PURPLE);
 			WiFiManager wifiManager;
 			wifiManager.resetSettings();
-			delay(1000);
+			delay(2000);
 			ESP.restart();
 		}
 
 		lastMillisLedSleep = currentMillis;
-		isLedSleeping = false;
 		isDoorClosedNow ? setPixelColor(BROWN) : setPixelColor(GREEN);
 
 	} else {
-		if ((!isLedSleeping) && (currentMillis - lastMillisLedSleep > timeBeforeLedSleepMS)) {
-			isLedSleeping = true;
+		if (currentMillis - lastMillisLedSleep > timeBeforeLedSleepMS) {
 			isDoorClosedNow ? fadeDownBrown() : fadeDownGreen();
 
-			// Put in sleep mode
-			KeyValueFlash config;
-			config.setValue("is_in_sleep_mode", "true");
-			ESP.reset();
+			config.set("is_in_sleep_mode", "true");
+			config.set("door_status_b4_sleep", isDoorClosedNow ? "closed" : "opened");
+
+			String sleepModeString = String(sleepTimeS);
+			sleepModeString += String(":");
+			sleepModeString += isDoorClosedNow ? String("closed") : String("opened");
+			Serial.println("Entering sleep mode: " + sleepModeString);
+			config.set("sleep_mode", sleepModeString);
+
+			delay(3000);
+			ESP.restart();
 		}
 
 		lastMillisWiFiConfigReset = currentMillis;
@@ -226,10 +241,12 @@ void loop()
 			isDoorClosedLastState = isDoorClosedNow;
 			if (isDoorClosedNow) {
 				sendToSlack("Occupied");
-				if (!isLedSleeping) setPixelColor(BROWN);
+				sendToSlack(String(getBatteryVoltage()));
+				setPixelColor(BROWN);
 			} else {
 				sendToSlack("Empty");
-				if (!isLedSleeping) setPixelColor(GREEN);
+				sendToSlack(String(getBatteryVoltage()));
+				setPixelColor(GREEN);
 			}
 		}
 	} else {
@@ -248,14 +265,13 @@ void loop()
 }
 
 bool rootCallback(WebServer *ws, WiFiClient *client, String queryString, String restArg1) {
-	KeyValueFlash config;
 	String tdStyle = "style=\"border: 1px solid black;padding-right: 10px;padding-left: 10px\"";;
 
 	ws->sendDefaultRootPage(queryString, false);
 
     client->println("<H2>Configuration parameters</H2>");
     client->println("<table style=\"border: 1px solid black;\">");
-
+/*
     KeyValueFlash::Pair *params = config.getConfig();
 	client->println("<tr>");
 	client->println("<th " + tdStyle + ">Key</th>");
@@ -268,7 +284,7 @@ bool rootCallback(WebServer *ws, WiFiClient *client, String queryString, String 
     	client->println("</tr>");
     }
     client->println("</table>");
-
+*/
     client->println("<H2>Door sensor status</H2>");
     if (isDoorClosed()) {
     	client->println("Door closed");
@@ -299,29 +315,25 @@ bool cabinStatusCallback(WebServer *ws, WiFiClient *client, String queryString, 
 }
 
 bool readFlashCallback(WebServer *ws, WiFiClient *client, String queryString, String restArg1) {
-	KeyValueFlash config;
 	ws->send200();
 
     client->println("<H2>Config file raw content</H2>");
-    client->println(config.getRawContent());
+  //  client->println(config.getRawContent());
 
 	return true;
 }
 
 bool writeFlashCallback(WebServer *ws, WiFiClient *client, String queryString, String restArg1) {
-	KeyValueFlash config;
-
 	ws->send200();
 
-    config.writeRawContent(queryString);
+    //config.writeRawContent(queryString);
     client->println("Success");
 
 	return true;
 }
 
 bool getConfigKeyCallback(WebServer *ws, WiFiClient *client, String queryString, String configKey) {
-	KeyValueFlash config;
-	String value = config.getValue(configKey);
+	String value = config.get(configKey);
     if (!value.equals("")) {
     	ws->send200();
     	client->println(value);
@@ -333,32 +345,27 @@ bool getConfigKeyCallback(WebServer *ws, WiFiClient *client, String queryString,
 }
 
 bool setConfigKeyCallback(WebServer *ws, WiFiClient *client, String queryString, String key) {
-	KeyValueFlash config;
 	ws->send201();
 
-    config.setValue(key, queryString);
+    config.set(key, queryString);
     client->println("Success");
-
-    loadConfig();
 
 	return true;
 }
 
 bool deleteConfigKeyCallback(WebServer *ws, WiFiClient *client, String queryString, String key) {
-	KeyValueFlash config;
 	ws->send200();
 
-    config.deleteKey(key);
+    //config.deleteKey(key);
     client->println("Success");
 
 	return true;
 }
 
 bool clearConfigFileCallback(WebServer *ws, WiFiClient *client, String queryString, String restArg1) {
-	KeyValueFlash config;
 	ws->send200();
 
-    config.clearConfigFile();
+    //config.clearConfigFile();
     client->println("Success");
 
 	return true;
@@ -401,8 +408,6 @@ void sendSslPOSTnoCertCheck(String host, String url, String msg){
 	 }
 	 */
 
-	  debug("requesting URL: '" + url + "'");
-
 	  client.print(String("POST ") + url + " HTTP/1.1\r\n" +
 	          "Host: " + host + "\r\n" +
 	          "Connection: close\r\n" +
@@ -412,8 +417,6 @@ void sendSslPOSTnoCertCheck(String host, String url, String msg){
 	          "Content-Length: "+msg.length()+"\r\n" +
 	          "\r\n" +
 	          msg + "\r\n");
-
-	  debug("request sent");
 
 	  unsigned long timeout = millis();
 	  while (client.available() == 0) {
@@ -440,73 +443,64 @@ void sendToSlack(String s) {
 	if (slackWebHookToken.equals("")) {
 		Serial.println("ERROR: Slack token not configured (slack_token configuration parameter)");
 	} else {
+		debug("Sending to slack: " + s);
 		String msg = "{\"text\":\"" + s + "\"}";
 		sendSslPOSTnoCertCheck("hooks.slack.com", String("/services/" + slackWebHookToken), msg);
 	}
 }
 
 void setPixelColor(short r, short g, short b) {
-	neoPixel->begin();
 	neoPixel->setPixelColor(0, g, r, b);
 	neoPixel->show();
 }
 
 void loadConfig(void) {
-	KeyValueFlash config;
-
 	// door_latch_delay_ms
-	String doorLatchDelayMSString = config.getValue("door_latch_delay_ms");
+	String doorLatchDelayMSString = config.get("door_latch_delay_ms");
 	if (!doorLatchDelayMSString.equals("")) {
 		if (doorLatchDelayMSString.toInt() >= 0) {
 			doorLatchDelayMS = doorLatchDelayMSString.toInt();
 		}
 	} else {
-		config.setValue("door_latch_delay_ms", String(doorLatchDelayMS));
+		config.set("door_latch_delay_ms", String(doorLatchDelayMS));
 	}
 
-	// time_before_led_sleep_ms
-	String timeBeforeLedSleepMSString = config.getValue("time_before_led_sleep_ms");
+	// sleep_time_ms
+	String timeBeforeLedSleepMSString = config.get("sleep_time_ms");
 	if (!timeBeforeLedSleepMSString.equals("")) {
 		if (timeBeforeLedSleepMSString.toInt() >= 0) {
 			timeBeforeLedSleepMS = timeBeforeLedSleepMSString.toInt();
 		}
 	} else {
-		config.setValue("time_before_led_sleep_ms", String(timeBeforeLedSleepMS));
+		config.set("sleep_time_ms", String(timeBeforeLedSleepMS));
 	}
 
 	// wifi_cfg_reset_ms
-	String wifiCfgResetMSString = config.getValue("wifi_cfg_reset_ms");
+	String wifiCfgResetMSString = config.get("wifi_cfg_reset_ms");
 	if (!wifiCfgResetMSString.equals("")) {
 		if (wifiCfgResetMSString.toInt() >= 0) {
 			wifiCfgResetMS = wifiCfgResetMSString.toInt();
 		}
 	} else {
-		config.setValue("wifi_cfg_reset_ms", String(wifiCfgResetMS));
+		config.set("wifi_cfg_reset_ms", String(wifiCfgResetMS));
 	}
-
-	// sleep_time_s
-	String sleepTimeSString = config.getValue("sleep_time_s");
-	if (!sleepTimeSString.equals("")) {
-		if (sleepTimeSString.toInt() >= 0) {
-			sleepTimeS = sleepTimeSString.toInt();
-		}
-	} else {
-		config.setValue("sleep_time_s", String(sleepTimeS));
-	}
-
-	unsigned int  sleepTimeS          = 5;
-
-    // lastIP
-	String lastIPString = config.getValue("lastIP");
 
 	// Slack webhook token
-	slackWebHookToken = config.getValue("slack_token");
+	slackWebHookToken = config.get("slack_token");
+}
 
-	// isInSleepMode
-	isInSleepMode = config.getValue("is_in_sleep_mode").equals("true");
+bool isInSleepMode(void) {
+	String value = config.get("sleep_mode");
+	Serial.print("Is in sleep mode? ");
+	if (value.length() > 0) {
+		Serial.println("Yes -> " + value);
+		sleepTimeS = value.substring(0, value.indexOf(":")).toInt();
+		isDoorClosedLastState = value.substring(value.indexOf(":") + 1, value.length()).equals("closed");
+		return true;
+	}
+	Serial.println("No");
 
-	// was the door closed when we went to sleep
-	isDoorClosedLastState = config.getValue("door_status_b4_sleep").equals("closed");
+	return false;
 }
 
 void fadeDownBrown(void) {
