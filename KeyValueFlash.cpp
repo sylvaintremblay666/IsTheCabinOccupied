@@ -15,8 +15,6 @@ KeyValueFlash::KeyValueFlash(String configName) {
 
 KeyValueFlash::KeyValueFlash() {
 	SPIFFS.begin();
-
-	elements = new Pair[elementsArraySize];
 }
 
 KeyValueFlash::~KeyValueFlash() {
@@ -35,6 +33,11 @@ void KeyValueFlash::set(String key, String value) {
 	}
 	f.print(value);
 	f.close();
+}
+
+bool KeyValueFlash::exist(String key) {
+	String valueFileName = configFolder + "/" + key;
+	return SPIFFS.exists(valueFileName);
 }
 
 String KeyValueFlash::get(String key) {

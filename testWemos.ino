@@ -45,7 +45,7 @@ String        slackWebHookToken     = "";    // Slack
 String        lastIP                = "";    // The IP address of the board the last time it booted
 unsigned long doorLatchDelayMS      = 1500;
 unsigned long wifiCfgResetMS        = 10000;
-unsigned long timeBeforeLedSleepMS  = 120000;
+unsigned long timeBeforeSleepMS     = 120000;
 unsigned int  sleepTimeS            = 3;
 
 bool          isDoorClosedLastState  = false;
@@ -71,8 +71,6 @@ void setup()
 		if (isButtonPressed()) {
 		  config.set("is_in_sleep_mode", "false");
 		  config.remove("sleep_mode");
-		  delay(1000);
-
 
 		  // Use the light to indicate the command has been understood
 		  pinMode(NeoPixelPin, OUTPUT);
@@ -81,7 +79,7 @@ void setup()
 		  neoPixel->setBrightness(50);
 		  fadeDownGreen();
 
-		  ESP.restart();
+		  ESP.deepSleep(10);
 		}
 
 		// If the state of the door has changed or if we are low battery
@@ -89,12 +87,21 @@ void setup()
 		bool doorChangedState = isDoorClosedNow != isDoorClosedLastState;
 		bool sendAlert = shouldSendLowBatAlert();
 		if (doorChangedState || sendAlert){
+			// Little trick to save power... When we go to sleep, we set the WiFi to be OFF
+			// at restart. If we need WiFi, we create the "turnOnRadio" config key, which
+			// will trigger the following code, which will reboot with the WiFi radio enabled.
+			if (config.exist("turnOnRadio")) {
+				config.remove("turnOnRadio");
+				Serial.println("Rebooting with radio ON");
+				ESP.deepSleep(10);
+			}
+			config.set("turnOnRadio", "1");
+
 			// Connect to WiFi
 		    WiFiManager wifiManager;
 		    wifiManager.autoConnect("DoorSensorConfig");
 
 			// Print local IP address
-			debug("");
 			debug("WiFi connected.");
 			debug("IP address: " + WiFi.localIP().toString());
 
@@ -109,11 +116,9 @@ void setup()
 				String sleepModeString = String(sleepTimeS);
 				sleepModeString += String(":");
 				sleepModeString += isDoorClosedNow ? String("closed") : String("opened");
+
 				Serial.println("Entering sleep mode: " + sleepModeString);
 				config.set("sleep_mode", sleepModeString);
-
-
-				delay(2000);
 			}
 
 			if (sendAlert) {
@@ -121,8 +126,10 @@ void setup()
 			}
 		}
 
-		// go back to sleep
-		ESP.deepSleep(sleepTimeS * 1000000);
+		// Go sleep, WiFi radio being disabled at reboot
+		Serial.println("Rebooting with radio OFF");
+		ESP.deepSleep(sleepTimeS * 1000000, WAKE_RF_DISABLED);
+		//ESP.deepSleep(sleepTimeS * 1000000);
 
 	}
 
@@ -150,7 +157,7 @@ void setup()
     WiFiManager wifiManager;
     if (isButtonPressed()) {
     	setPixelColor(ORANGE);
-    	wifiManager.setLastIP(lastIP);
+    	wifiManager.setLastIP(config.get("lastIP"));
     	wifiManager.startConfigPortal("DoorSensorConfig");
     } else {
     	wifiManager.autoConnect("DoorSensorConfig");
@@ -162,7 +169,9 @@ void setup()
 	debug("IP address: " + WiFi.localIP().toString());
 
 	// Save IP address to flash memory
-	config.set("lastIP", WiFi.localIP().toString());
+	if (!config.get("lastIP").equals(WiFi.localIP().toString())){
+		config.set("lastIP", WiFi.localIP().toString());
+	}
 
 	// Send WiFi infos to slack
 	sendToSlack("Sensor connected to WiFi SSID: " + WiFi.SSID());
@@ -173,9 +182,6 @@ void setup()
 	webServer->setDefaultPageTitle("CabinSensor");
 	webServer->registerEndpoint("GET /", "root page", rootCallback);
 	webServer->registerEndpoint("GET /cabinStatus", "Get the status of the cabin (Occupied/Vacant)", cabinStatusCallback);
-	webServer->registerEndpoint("GET /flash/read", "Get raw content of the config file from the flash", readFlashCallback);
-	//webServer->registerEndpoint("GET /flash/write", "Write the query string as-is to the config file on the flash", writeFlashCallback);
-	webServer->registerEndpoint("GET /flash/clear", "Clears the config file", clearConfigFileCallback);
 
 	webServer->registerEndpoint("GET /config/get/{}", "Get an element from the config", getConfigKeyCallback);
 	webServer->registerEndpoint("GET /config/set/{}", "Set an element in the config, queryString is the value", setConfigKeyCallback);
@@ -216,7 +222,7 @@ void loop()
 		isDoorClosedNow ? setPixelColor(BROWN) : setPixelColor(GREEN);
 
 	} else {
-		if (currentMillis - lastMillisLedSleep > timeBeforeLedSleepMS) {
+		if (currentMillis - lastMillisLedSleep > timeBeforeSleepMS) {
 			isDoorClosedNow ? fadeDownBrown() : fadeDownGreen();
 
 			config.set("is_in_sleep_mode", "true");
@@ -314,24 +320,6 @@ bool cabinStatusCallback(WebServer *ws, WiFiClient *client, String queryString, 
 	return true;
 }
 
-bool readFlashCallback(WebServer *ws, WiFiClient *client, String queryString, String restArg1) {
-	ws->send200();
-
-    client->println("<H2>Config file raw content</H2>");
-  //  client->println(config.getRawContent());
-
-	return true;
-}
-
-bool writeFlashCallback(WebServer *ws, WiFiClient *client, String queryString, String restArg1) {
-	ws->send200();
-
-    //config.writeRawContent(queryString);
-    client->println("Success");
-
-	return true;
-}
-
 bool getConfigKeyCallback(WebServer *ws, WiFiClient *client, String queryString, String configKey) {
 	String value = config.get(configKey);
     if (!value.equals("")) {
@@ -357,15 +345,6 @@ bool deleteConfigKeyCallback(WebServer *ws, WiFiClient *client, String queryStri
 	ws->send200();
 
     //config.deleteKey(key);
-    client->println("Success");
-
-	return true;
-}
-
-bool clearConfigFileCallback(WebServer *ws, WiFiClient *client, String queryString, String restArg1) {
-	ws->send200();
-
-    //config.clearConfigFile();
     client->println("Success");
 
 	return true;
@@ -466,13 +445,13 @@ void loadConfig(void) {
 	}
 
 	// sleep_time_ms
-	String timeBeforeLedSleepMSString = config.get("sleep_time_ms");
-	if (!timeBeforeLedSleepMSString.equals("")) {
-		if (timeBeforeLedSleepMSString.toInt() >= 0) {
-			timeBeforeLedSleepMS = timeBeforeLedSleepMSString.toInt();
+	String timeBeforeSleepMSString = config.get("sleep_time_ms");
+	if (!timeBeforeSleepMSString.equals("")) {
+		if (timeBeforeSleepMSString.toInt() >= 0) {
+			timeBeforeSleepMS = timeBeforeSleepMSString.toInt();
 		}
 	} else {
-		config.set("sleep_time_ms", String(timeBeforeLedSleepMS));
+		config.set("sleep_time_ms", String(timeBeforeSleepMS));
 	}
 
 	// wifi_cfg_reset_ms
@@ -531,7 +510,7 @@ bool shouldSendLowBatAlert(void) {
 }
 
 void sendLowBatAlert() {
-	sendToSlack("LOW BATTERY !!!");
+	sendToSlack("LOW BATTERY !!! : " + String(getBatteryVoltage()));
 }
 
 void debug(String msg) {

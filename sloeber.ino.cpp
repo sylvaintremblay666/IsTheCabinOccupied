@@ -2,7 +2,7 @@
 //This is a automatic generated file
 //Please do not modify this file
 //If you touch this file your change will be overwritten during the next build
-//This file has been generated on 2018-11-14 16:36:28
+//This file has been generated on 2018-11-16 13:21:10
 
 #include "Arduino.h"
 #include "Arduino.h"
@@ -19,12 +19,9 @@ void setup() ;
 void loop() ;
 bool rootCallback(WebServer *ws, WiFiClient *client, String queryString, String restArg1) ;
 bool cabinStatusCallback(WebServer *ws, WiFiClient *client, String queryString, String restArg1) ;
-bool readFlashCallback(WebServer *ws, WiFiClient *client, String queryString, String restArg1) ;
-bool writeFlashCallback(WebServer *ws, WiFiClient *client, String queryString, String restArg1) ;
 bool getConfigKeyCallback(WebServer *ws, WiFiClient *client, String queryString, String configKey) ;
 bool setConfigKeyCallback(WebServer *ws, WiFiClient *client, String queryString, String key) ;
 bool deleteConfigKeyCallback(WebServer *ws, WiFiClient *client, String queryString, String key) ;
-bool clearConfigFileCallback(WebServer *ws, WiFiClient *client, String queryString, String restArg1) ;
 bool resetWiFiCallback(WebServer *ws, WiFiClient *client, String queryString, String restArg1) ;
 bool isDoorClosed(void) ;
 bool isButtonPressed(void) ;
